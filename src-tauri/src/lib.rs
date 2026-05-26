@@ -33,6 +33,9 @@ pub struct AppState {
     pub sources: Vec<Arc<dyn QuotaSource>>,
     pub last_snapshot: RwLock<Option<Snapshot>>,
     pub settings: RwLock<Settings>,
+    /// Highest notification threshold (0/80/95) already fired per quota, keyed
+    /// by "service_id:quota_label", so we alert once per threshold crossing.
+    pub notified: RwLock<std::collections::HashMap<String, u8>>,
 }
 
 #[tauri::command]
@@ -115,12 +118,15 @@ async fn get_settings(state: tauri::State<'_, Arc<AppState>>) -> Result<Settings
 /// poll loop reads `poll_interval_secs` from this state on its next tick.
 #[tauri::command]
 async fn set_settings(
+    app: AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     settings: Settings,
 ) -> Result<(), String> {
     let settings = settings.sanitized();
     settings.save().map_err(|e| e.to_string())?;
-    *state.settings.write().await = settings;
+    *state.settings.write().await = settings.clone();
+    // Let every window react (e.g. live theme switch).
+    let _ = app.emit("settings-updated", &settings);
     Ok(())
 }
 
@@ -165,6 +171,69 @@ async fn poll_once(state: Arc<AppState>) -> Snapshot {
     snapshot
 }
 
+/// The highest enabled notification threshold a usage percentage has crossed,
+/// or 0 if none. 95 takes precedence over 80.
+fn crossed_threshold(pct: f64, notify_80: bool, notify_95: bool) -> u8 {
+    if notify_95 && pct >= 95.0 {
+        95
+    } else if notify_80 && pct >= 80.0 {
+        80
+    } else {
+        0
+    }
+}
+
+/// Fire a desktop notification the first time an active quota crosses an
+/// enabled threshold (80% / 95%), once per crossing. Resets a quota's state
+/// when it drops back below 80% so a later re-crossing alerts again.
+async fn notify_thresholds(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    snapshot: &Snapshot,
+    settings: &Settings,
+) {
+    use tauri_plugin_notification::NotificationExt;
+
+    if !settings.notify_80 && !settings.notify_95 {
+        return;
+    }
+
+    let mut notified = state.notified.write().await;
+    for service in &snapshot.services {
+        if !matches!(service.state, crate::sources::ServiceState::Active) {
+            continue;
+        }
+        for quota in &service.quotas {
+            if quota.total <= 0.0 {
+                continue;
+            }
+            let pct = (quota.used / quota.total) * 100.0;
+            let key = format!("{}:{}", service.id, quota.label);
+
+            if pct < 80.0 {
+                notified.insert(key, 0);
+                continue;
+            }
+
+            let crossed = crossed_threshold(pct, settings.notify_80, settings.notify_95);
+            let last = notified.get(&key).copied().unwrap_or(0);
+            if crossed > last {
+                let body = format!("{} · {} at {:.0}%", service.name, quota.label, pct);
+                if let Err(e) = app
+                    .notification()
+                    .builder()
+                    .title("Headroom")
+                    .body(body)
+                    .show()
+                {
+                    warn!(?e, "failed to show notification");
+                }
+                notified.insert(key, crossed);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -182,6 +251,7 @@ pub fn run() {
         ],
         last_snapshot: RwLock::new(None),
         settings: RwLock::new(Settings::load()),
+        notified: RwLock::new(std::collections::HashMap::new()),
     });
 
     tauri::Builder::default()
@@ -226,9 +296,10 @@ pub fn run() {
                     if let Err(e) = handle.emit("tokens-updated", &snapshot) {
                         error!(?e, "failed to emit tokens-updated");
                     }
-                    tray::update_state(&handle, &snapshot);
-                    let interval = state_clone.settings.read().await.poll_interval_secs;
-                    tokio::time::sleep(Duration::from_secs(interval)).await;
+                    let settings = state_clone.settings.read().await.clone();
+                    tray::update_state(&handle, &snapshot, settings.show_tray_percentage);
+                    notify_thresholds(&handle, &state_clone, &snapshot, &settings).await;
+                    tokio::time::sleep(Duration::from_secs(settings.poll_interval_secs)).await;
                 }
             });
 
@@ -236,4 +307,25 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::crossed_threshold;
+
+    #[test]
+    fn thresholds_respect_enabled_flags_and_precedence() {
+        // 95 wins over 80 when both enabled.
+        assert_eq!(crossed_threshold(96.0, true, true), 95);
+        assert_eq!(crossed_threshold(85.0, true, true), 80);
+        assert_eq!(crossed_threshold(50.0, true, true), 0);
+        // Boundaries are inclusive.
+        assert_eq!(crossed_threshold(95.0, true, true), 95);
+        assert_eq!(crossed_threshold(80.0, true, true), 80);
+        // Disabled flags are never reported.
+        assert_eq!(crossed_threshold(99.0, true, false), 80);
+        assert_eq!(crossed_threshold(99.0, false, true), 95);
+        assert_eq!(crossed_threshold(99.0, false, false), 0);
+        assert_eq!(crossed_threshold(85.0, false, true), 0);
+    }
 }

@@ -4,6 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import App from './App';
 import OnboardingFlow from './OnboardingFlow';
 import SettingsPanel from './SettingsPanel';
+import { initTheme } from './lib/theme';
 import './index.css';
 
 // All windows load this same bundle; render by window label.
@@ -15,6 +16,8 @@ function resolveRoot() {
 }
 
 const Root = resolveRoot();
+
+void initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

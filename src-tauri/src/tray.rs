@@ -98,7 +98,7 @@ fn show_window(app: &AppHandle, label: &str) {
     }
 }
 
-pub fn update_state(app: &AppHandle, snapshot: &Snapshot) {
+pub fn update_state(app: &AppHandle, snapshot: &Snapshot, show_percentage: bool) {
     let state = compute_state(snapshot);
     let Some(tray) = app.tray_by_id("main") else {
         return;
@@ -108,10 +108,13 @@ pub fn update_state(app: &AppHandle, snapshot: &Snapshot) {
             error!(?e, "failed to update tray icon");
         }
     }
-    if let Some(pct) = worst_percentage(snapshot) {
-        let _ = tray.set_title(Some(&format!("{pct}%")));
-    } else {
-        let _ = tray.set_title(None::<&str>);
+    match worst_percentage(snapshot).filter(|_| show_percentage) {
+        Some(pct) => {
+            let _ = tray.set_title(Some(&format!("{pct}%")));
+        }
+        None => {
+            let _ = tray.set_title(None::<&str>);
+        }
     }
 }
 

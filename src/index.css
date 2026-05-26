@@ -15,18 +15,19 @@
   --fg-quaternary: rgba(26, 26, 26, 0.3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-window: rgba(22, 24, 30, 0.78);
-    --bg-window-opaque: rgba(22, 24, 30, 0.96);
-    --bg-secondary: rgba(255, 255, 255, 0.05);
-    --border-default: rgba(255, 255, 255, 0.08);
-    --border-emphasis: rgba(255, 255, 255, 0.15);
-    --fg-primary: rgba(255, 255, 255, 0.92);
-    --fg-secondary: rgba(255, 255, 255, 0.78);
-    --fg-tertiary: rgba(255, 255, 255, 0.5);
-    --fg-quaternary: rgba(255, 255, 255, 0.3);
-  }
+/* Dark tokens are driven by a `.dark` class on <html>, set from the theme
+   setting (auto resolves the OS preference). This keeps the CSS variables and
+   Tailwind's `dark:` variants (darkMode: 'class') on the same trigger. */
+.dark {
+  --bg-window: rgba(22, 24, 30, 0.78);
+  --bg-window-opaque: rgba(22, 24, 30, 0.96);
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-emphasis: rgba(255, 255, 255, 0.15);
+  --fg-primary: rgba(255, 255, 255, 0.92);
+  --fg-secondary: rgba(255, 255, 255, 0.78);
+  --fg-tertiary: rgba(255, 255, 255, 0.5);
+  --fg-quaternary: rgba(255, 255, 255, 0.3);
 }
 
 html,
