@@ -1,0 +1,44 @@
+# Node
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock.bak
+
+# Build outputs
+*.dmg
+*.msi
+*.exe
+*.AppImage
+*.deb
+*.rpm
+
+# Editor
+.vscode/*
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+coverage/
+*.lcov
+
+# Misc
+.claude/
+.cache/

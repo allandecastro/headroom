@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Color tokens — see DESIGN_SYSTEM.md */
+:root {
+  --bg-window: rgba(248, 247, 244, 0.82);
+  --bg-window-opaque: #f8f7f4;
+  --bg-secondary: rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-emphasis: rgba(0, 0, 0, 0.15);
+  --fg-primary: rgba(26, 26, 26, 0.92);
+  --fg-secondary: rgba(26, 26, 26, 0.72);
+  --fg-tertiary: rgba(26, 26, 26, 0.5);
+  --fg-quaternary: rgba(26, 26, 26, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-window: rgba(22, 24, 30, 0.78);
+    --bg-window-opaque: rgba(22, 24, 30, 0.96);
+    --bg-secondary: rgba(255, 255, 255, 0.05);
+    --border-default: rgba(255, 255, 255, 0.08);
+    --border-emphasis: rgba(255, 255, 255, 0.15);
+    --fg-primary: rgba(255, 255, 255, 0.92);
+    --fg-secondary: rgba(255, 255, 255, 0.78);
+    --fg-tertiary: rgba(255, 255, 255, 0.5);
+    --fg-quaternary: rgba(255, 255, 255, 0.3);
+  }
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--fg-primary);
+  font-family: theme('fontFamily.sans');
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .surface {
+    background: var(--bg-window);
+    border: 0.5px solid var(--border-default);
+    border-radius: 12px;
+    padding: 14px 14px 10px;
+  }
+}
+
+@layer utilities {
+  .border-hairline {
+    border-width: 0.5px;
+  }
+  .border-default {
+    border-color: var(--border-default);
+  }
+  .text-fg-primary {
+    color: var(--fg-primary);
+  }
+  .text-fg-secondary {
+    color: var(--fg-secondary);
+  }
+  .text-fg-tertiary {
+    color: var(--fg-tertiary);
+  }
+  .text-fg-quaternary {
+    color: var(--fg-quaternary);
+  }
+}
