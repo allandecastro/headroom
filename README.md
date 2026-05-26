@@ -99,6 +99,23 @@ headroom/
 
 `src-tauri/tauri.conf.json` sets `transparent: true` on the main popover window and requests `vibrancy: "sidebar"` on macOS / `effects: ["mica"]` on Windows. Linux falls back to a translucent solid since blur support varies by compositor.
 
+#### Regenerating icons
+
+Tray icons (state-dependent: ok / warn / crit / unreachable):
+
+```bash
+python3 scripts/build_tray_icons.py
+```
+
+App bundle icons (from the brand mark SVG):
+
+```bash
+rsvg-convert -w 1024 -h 1024 \
+  assets/headroom-app-icon.svg -o /tmp/headroom-source.png
+npx tauri icon /tmp/headroom-source.png
+rm /tmp/headroom-source.png
+```
+
 ---
 
 ## Documentation
