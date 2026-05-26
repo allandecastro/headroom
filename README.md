@@ -2,6 +2,8 @@
 
 > Know your headroom. A menu bar app that tracks your Claude Code and GitHub Copilot quotas before you hit them.
 
+![CI](https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg)
+
 Headroom sits in your menu bar and shows, at a glance, how much of your AI coding assistant budget you have left — across the rolling 5-hour window, the 7-day weekly cap, and the monthly Copilot allowance. It tells you when to switch from Opus to Sonnet, how long until the next reset, and projects whether you'll make it to Monday at your current pace.
 
 It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually use these tools all day and have run into the "usage limit reached" wall mid-task.
