@@ -19,16 +19,7 @@ export default function OnboardingFlow() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden rounded-[10px] border-hairline border-default bg-window-opaque text-fg-primary">
-      <div
-        data-tauri-drag-region
-        className="flex items-center gap-1.5 px-3 py-2.5 border-b border-hairline border-default"
-      >
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-      </div>
-
+    <div className="h-full flex flex-col bg-window-opaque text-fg-primary">
       <div className="flex-1 overflow-y-auto px-6 pt-6 pb-[18px]">
         <h1 className="mb-1 text-[17px] font-medium tracking-[-0.01em]">Connect your services</h1>
         <p className="mb-[18px] text-[12px] leading-normal text-fg-tertiary">

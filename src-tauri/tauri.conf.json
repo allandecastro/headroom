@@ -28,28 +28,30 @@
       {
         "label": "onboarding",
         "title": "Headroom — Set up",
-        "width": 460,
-        "height": 600,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
+        "width": 480,
+        "height": 640,
+        "minWidth": 420,
+        "minHeight": 480,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
         "center": true,
         "skipTaskbar": false,
-        "visible": false,
-        "shadow": true
+        "visible": false
       },
       {
         "label": "settings",
         "title": "Headroom — Settings",
-        "width": 460,
-        "height": 560,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
+        "width": 480,
+        "height": 600,
+        "minWidth": 420,
+        "minHeight": 460,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
         "center": true,
         "skipTaskbar": false,
-        "visible": false,
-        "shadow": true
+        "visible": false
       }
     ],
     "security": {

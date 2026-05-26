@@ -26,11 +26,12 @@ export function ServiceAuthCard({ icon, name, primaryLabel, advancedLabel, child
       <button
         type="button"
         disabled
-        title="Coming in a later version — use Advanced to paste a token for now"
-        className="w-full flex items-center justify-center gap-[7px] mb-2 px-3.5 py-[9px] rounded-[6px] border-hairline border-emphasis bg-black/[0.05] dark:bg-white/[0.08] text-[12.5px] font-medium text-fg-primary opacity-40 cursor-default"
+        title="Direct sign-in is coming in a later version — use “advanced” below to paste a token for now"
+        className="w-full flex items-center justify-center gap-[7px] mb-2 px-3.5 py-[9px] rounded-[6px] border-hairline border-emphasis bg-black/[0.05] dark:bg-white/[0.08] text-[12.5px] font-medium text-fg-primary opacity-40 cursor-not-allowed"
       >
         <ExternalLinkIcon />
         {primaryLabel}
+        <span className="ml-1 text-[9px] uppercase tracking-[0.08em] text-fg-tertiary">soon</span>
       </button>
 
       <div className="flex items-center gap-2 my-2 text-[10px] uppercase tracking-[0.08em] text-fg-quaternary before:flex-1 before:h-[0.5px] before:bg-[var(--border-default)] before:content-[''] after:flex-1 after:h-[0.5px] after:bg-[var(--border-default)] after:content-['']">

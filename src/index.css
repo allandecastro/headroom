@@ -4,7 +4,7 @@
 
 /* Color tokens — see DESIGN_SYSTEM.md */
 :root {
-  --bg-window: rgba(248, 247, 244, 0.82);
+  --bg-window: rgba(248, 247, 244, 0.92);
   --bg-window-opaque: #f8f7f4;
   --bg-secondary: rgba(0, 0, 0, 0.04);
   --border-default: rgba(0, 0, 0, 0.08);
@@ -19,8 +19,8 @@
    setting (auto resolves the OS preference). This keeps the CSS variables and
    Tailwind's `dark:` variants (darkMode: 'class') on the same trigger. */
 .dark {
-  --bg-window: rgba(22, 24, 30, 0.78);
-  --bg-window-opaque: rgba(22, 24, 30, 0.96);
+  --bg-window: rgba(22, 24, 30, 0.92);
+  --bg-window-opaque: #16181e;
   --bg-secondary: rgba(255, 255, 255, 0.05);
   --border-default: rgba(255, 255, 255, 0.08);
   --border-emphasis: rgba(255, 255, 255, 0.15);

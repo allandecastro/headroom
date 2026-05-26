@@ -185,20 +185,7 @@ export default function SettingsPanel() {
   const copilotSvc = snapshot?.services.find((s) => s.id === 'copilot');
 
   return (
-    <div className="h-full flex flex-col overflow-hidden rounded-[10px] border-hairline border-default bg-window-opaque text-fg-primary">
-      {/* Titlebar */}
-      <div
-        data-tauri-drag-region
-        className="flex items-center gap-1.5 px-3 py-2.5 border-b border-hairline"
-        style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-      >
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-        <span className="w-[11px] h-[11px] rounded-full bg-black/[0.18] dark:bg-white/[0.18]" />
-        <span className="ml-2 text-[12px] text-fg-secondary">Settings</span>
-      </div>
-
-      {/* Body */}
+    <div className="h-full flex flex-col bg-window-opaque text-fg-primary">
       <div className="flex-1 overflow-y-auto px-[22px] pt-[18px] pb-4">
         {/* POLLING */}
         <Group label="Polling">
