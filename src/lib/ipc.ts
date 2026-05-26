@@ -32,3 +32,28 @@ export function setCopilotPlan(plan: CopilotPlan): Promise<void> {
 export function clearCredentials(service: CredentialService): Promise<void> {
   return invoke('clear_credentials', { service });
 }
+
+// ─── Settings IPC ────────────────────────────────────────────────────────────
+
+export interface Settings {
+  poll_interval_secs: number; // 15 | 30 | 60 | 300
+  theme: 'auto' | 'light' | 'dark';
+  show_tray_percentage: boolean;
+  notify_80: boolean;
+  notify_95: boolean;
+}
+
+/** Load persisted settings from the backend. */
+export function getSettings(): Promise<Settings> {
+  return invoke('get_settings');
+}
+
+/** Persist updated settings to the backend. */
+export function setSettings(settings: Settings): Promise<void> {
+  return invoke('set_settings', { settings });
+}
+
+/** Open (or focus) the onboarding window. */
+export function openOnboarding(): Promise<void> {
+  return invoke('open_onboarding');
+}

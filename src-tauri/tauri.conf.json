@@ -37,6 +37,19 @@
         "skipTaskbar": false,
         "visible": false,
         "shadow": true
+      },
+      {
+        "label": "settings",
+        "title": "Headroom — Settings",
+        "width": 460,
+        "height": 560,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "center": true,
+        "skipTaskbar": false,
+        "visible": false,
+        "shadow": true
       }
     ],
     "security": {
