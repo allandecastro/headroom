@@ -43,6 +43,65 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Store the Claude `sessionKey` cookie value in the keychain.
+#[tauri::command]
+fn set_claude_session(
+    state: tauri::State<'_, Arc<AppState>>,
+    session_key: String,
+) -> Result<(), String> {
+    state
+        .credentials
+        .set("claude.session", &session_key)
+        .map_err(|e| e.to_string())
+}
+
+/// Store the Copilot Bearer token (OAuth or PAT) in the keychain.
+#[tauri::command]
+fn set_copilot_token(state: tauri::State<'_, Arc<AppState>>, token: String) -> Result<(), String> {
+    state
+        .credentials
+        .set("copilot.token", &token)
+        .map_err(|e| e.to_string())
+}
+
+/// Store the GitHub username used in the Copilot billing API path.
+#[tauri::command]
+fn set_copilot_username(
+    state: tauri::State<'_, Arc<AppState>>,
+    username: String,
+) -> Result<(), String> {
+    state
+        .credentials
+        .set("copilot.username", &username)
+        .map_err(|e| e.to_string())
+}
+
+/// Store the Copilot plan tier. Rejects anything other than the recognized
+/// tiers (`free` | `pro` | `pro_plus`) so the monthly-cap lookup stays valid.
+#[tauri::command]
+fn set_copilot_plan(state: tauri::State<'_, Arc<AppState>>, plan: String) -> Result<(), String> {
+    if !credentials::is_valid_copilot_plan(&plan) {
+        return Err(format!("invalid plan: {plan}"));
+    }
+    state
+        .credentials
+        .set("copilot.plan", &plan)
+        .map_err(|e| e.to_string())
+}
+
+/// Clear every credential stored under a service's prefix (`claude` | `copilot`).
+#[tauri::command]
+fn clear_credentials(
+    state: tauri::State<'_, Arc<AppState>>,
+    service: String,
+) -> Result<(), String> {
+    let keys = credentials::service_keys(&service)?;
+    for key in keys {
+        state.credentials.delete(key).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 async fn poll_once(state: Arc<AppState>) -> Snapshot {
     let mut services = Vec::with_capacity(state.sources.len());
 
@@ -97,7 +156,15 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .manage(state.clone())
-        .invoke_handler(tauri::generate_handler![refresh_all, quit_app])
+        .invoke_handler(tauri::generate_handler![
+            refresh_all,
+            quit_app,
+            set_claude_session,
+            set_copilot_token,
+            set_copilot_username,
+            set_copilot_plan,
+            clear_credentials
+        ])
         .setup(move |app| {
             let handle = app.handle().clone();
             tray::install(app)?;

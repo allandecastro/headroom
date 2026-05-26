@@ -182,7 +182,18 @@ Thin wrapper around the `keyring` crate. All values stored under service name `h
 - `claude.session` — the `sessionKey` cookie value
 - `claude.orgId` — cached organization UUID
 - `copilot.token` — Bearer token (OAuth or PAT)
+- `copilot.username` — GitHub username used in the billing API path
 - `copilot.plan` — plan tier ("free" | "pro" | "pro_plus"), used to look up the monthly cap
+
+The renderer writes these via IPC commands (the onboarding flow calls them; the renderer never touches the keychain directly):
+
+| Command | Effect |
+| ------- | ------ |
+| `set_claude_session(session_key)` | Writes `claude.session` |
+| `set_copilot_token(token)` | Writes `copilot.token` |
+| `set_copilot_username(username)` | Writes `copilot.username` |
+| `set_copilot_plan(plan)` | Validates `plan` against the recognized tiers, then writes `copilot.plan` |
+| `clear_credentials(service)` | Deletes every key under the `claude` or `copilot` prefix |
 
 ### `orchestrator`
 
