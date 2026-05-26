@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Headroom · Design tokens</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #1c2030;
+      align-items: stretch;
+      justify-content: flex-start;
+      padding: 32px 32px 60px;
+      color: rgba(255,255,255,0.92);
+      gap: 0;
+    }
+
+    .header {
+      margin-bottom: 28px;
+      max-width: 880px; margin-left: auto; margin-right: auto;
+      width: 100%;
+    }
+    .header h1 {
+      margin: 0 0 4px;
+      font-size: 20px; font-weight: 500;
+      letter-spacing: -0.015em;
+      color: rgba(255,255,255,0.95);
+    }
+    .header p {
+      font-size: 12px; color: rgba(255,255,255,0.5);
+      margin: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      max-width: 880px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(22,24,30,0.96);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .card h2 {
+      font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.5);
+      margin: 0 0 14px;
+    }
+    .card .sub {
+      font-size: 10.5px; color: rgba(255,255,255,0.4);
+      margin: -10px 0 14px;
+    }
+
+    /* Swatches */
+    .swatch-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 0;
+      font-size: 11px;
+      border-bottom: 0.5px solid rgba(255,255,255,0.05);
+    }
+    .swatch-row:last-child { border-bottom: none; }
+    .swatch {
+      width: 22px; height: 22px;
+      border-radius: 5px;
+      border: 0.5px solid rgba(255,255,255,0.15);
+      flex-shrink: 0;
+    }
+    .swatch-name { color: rgba(255,255,255,0.85); flex: 1; }
+    .swatch-val {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* Type samples */
+    .type-row {
+      padding: 9px 0;
+      border-bottom: 0.5px solid rgba(255,255,255,0.05);
+    }
+    .type-row:last-child { border-bottom: none; }
+    .type-label {
+      font-size: 9.5px;
+      color: rgba(255,255,255,0.4);
+      font-family: var(--font-mono);
+    }
+    .type-sample {
+      margin-top: 3px;
+      color: rgba(255,255,255,0.92);
+    }
+
+    /* Component samples */
+    .demo {
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .demo-caption {
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .progress-demo {
+      display: grid; gap: 10px;
+    }
+    .pb {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 10.5px;
+    }
+    .pb-label { width: 50px; color: rgba(255,255,255,0.7); }
+    .pb-bar {
+      flex: 1; height: 2px;
+      background: rgba(255,255,255,0.08);
+    }
+    .pb-fill {
+      height: 100%;
+    }
+    .pb-pct { width: 30px; text-align: right; font-family: var(--font-mono); }
+
+    /* Status text examples */
+    .st { padding: 4px 0; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Design tokens · Headroom</h1>
+  <p>Snapshot of the visual system, in dark mode (default). Light mode mirrors all values; see <code style="font-family:var(--font-mono); font-size: 11px;">DESIGN_SYSTEM.md</code> for the full table.</p>
+</div>
+
+<div class="grid">
+
+  <!-- BACKGROUNDS -->
+  <div class="card">
+    <h2>Surfaces (dark)</h2>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(22, 24, 30, 0.78)"></span>
+      <span class="swatch-name">bg-window</span>
+      <span class="swatch-val">rgba(22, 24, 30, 0.78)</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(22, 24, 30, 0.96)"></span>
+      <span class="swatch-name">bg-window-opaque</span>
+      <span class="swatch-val">rgba(22, 24, 30, 0.96)</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255,255,255,0.05)"></span>
+      <span class="swatch-name">bg-secondary</span>
+      <span class="swatch-val">rgba(255, 255, 255, 0.05)</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.15)"></span>
+      <span class="swatch-name">border-default</span>
+      <span class="swatch-val">rgba(255, 255, 255, 0.08)</span>
+    </div>
+  </div>
+
+  <!-- FOREGROUNDS -->
+  <div class="card">
+    <h2>Foregrounds (dark)</h2>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.92)"></span>
+      <span class="swatch-name">fg-primary</span>
+      <span class="swatch-val">.92</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.78)"></span>
+      <span class="swatch-name">fg-secondary</span>
+      <span class="swatch-val">.78</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.5)"></span>
+      <span class="swatch-name">fg-tertiary</span>
+      <span class="swatch-val">.5</span>
+    </div>
+    <div class="swatch-row">
+      <span class="swatch" style="background: rgba(255, 255, 255, 0.3)"></span>
+      <span class="swatch-name">fg-quaternary</span>
+      <span class="swatch-val">.3</span>
+    </div>
+  </div>
+
+  <!-- STATUS COLORS -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>Status colors</h2>
+    <p class="sub">Only used in: progress fills, percentage numbers ≥ warn, advisory text under critical. Never as background fills.</p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+      <div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #8ab368"></span>
+          <span class="swatch-name">ok · fill</span>
+          <span class="swatch-val">#8ab368</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #9bc176"></span>
+          <span class="swatch-name">ok · text</span>
+          <span class="swatch-val">#9bc176</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #d99c52"></span>
+          <span class="swatch-name">warn · fill</span>
+          <span class="swatch-val">#d99c52</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #e0a85e"></span>
+          <span class="swatch-name">warn · text</span>
+          <span class="swatch-val">#e0a85e</span>
+        </div>
+      </div>
+      <div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #d4625d"></span>
+          <span class="swatch-name">crit · fill</span>
+          <span class="swatch-val">#d4625d</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: #e07670"></span>
+          <span class="swatch-name">crit · text</span>
+          <span class="swatch-val">#e07670</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: rgba(255,255,255,0.25)"></span>
+          <span class="swatch-name">unreach · fill</span>
+          <span class="swatch-val">rgba(255,255,255,.25)</span>
+        </div>
+        <div class="swatch-row">
+          <span class="swatch" style="background: rgba(255,255,255,0.45)"></span>
+          <span class="swatch-name">unreach · text</span>
+          <span class="swatch-val">rgba(255,255,255,.45)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY -->
+  <div class="card">
+    <h2>Typography</h2>
+    <p class="sub">System fonts only. Two weights: 400 and 500. Sentence case. Never 600 or 700.</p>
+
+    <div class="type-row">
+      <div class="type-label">section label · 11 / 500 · UPPERCASE 0.08em</div>
+      <div class="type-sample" style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5);">CLAUDE CODE</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">body label · 12 / 400</div>
+      <div class="type-sample" style="font-size: 12px;">5h · Sonnet · Opus</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">numbers · 10.5 / 500 · mono · tabular-nums</div>
+      <div class="type-sample" style="font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; font-variant-numeric: tabular-nums;">142 / 225 · 63%</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">meta · 9.5 / 400 · --fg-tertiary</div>
+      <div class="type-sample" style="font-size: 9.5px; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums;">17:46 · in 2h 14m</div>
+    </div>
+    <div class="type-row">
+      <div class="type-label">heading · 17 / 500 · -0.01em</div>
+      <div class="type-sample" style="font-size: 17px; font-weight: 500; letter-spacing: -0.01em;">Connect your services</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS BARS -->
+  <div class="card">
+    <h2>Progress bars</h2>
+    <p class="sub">Always 2px tall. Never rounded. No animation on update.</p>
+
+    <div class="progress-demo">
+      <div class="pb">
+        <span class="pb-label">63%</span>
+        <span class="pb-bar"><span class="pb-fill" style="width:63%; background:#8ab368;"></span></span>
+        <span class="pb-pct" style="color:rgba(255,255,255,0.7)">ok</span>
+      </div>
+      <div class="pb">
+        <span class="pb-label">77%</span>
+        <span class="pb-bar"><span class="pb-fill" style="width:77%; background:#d99c52;"></span></span>
+        <span class="pb-pct" style="color:#e0a85e">warn</span>
+      </div>
+      <div class="pb">
+        <span class="pb-label">96%</span>
+        <span class="pb-bar"><span class="pb-fill" style="width:96%; background:#d4625d;"></span></span>
+        <span class="pb-pct" style="color:#e07670">crit</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUTTONS -->
+  <div class="card">
+    <h2>Buttons</h2>
+    <p class="sub">No shadows. Hover changes background only.</p>
+
+    <div class="demo">
+      <div class="demo-caption">.btn (default)</div>
+      <div style="display:flex; gap: 8px; align-items:center;">
+        <button class="btn">Retry</button>
+        <button class="btn">Sign in again</button>
+        <button class="btn" style="opacity:0.5">Disabled</button>
+      </div>
+    </div>
+
+    <div class="demo">
+      <div class="demo-caption">.btn-primary (ok-fill background)</div>
+      <button class="btn btn-primary">Start watching →</button>
+    </div>
+  </div>
+
+  <!-- HAIRLINES -->
+  <div class="card">
+    <h2>Hairlines</h2>
+    <p class="sub">All borders are 0.5px. Never 1px.</p>
+
+    <div style="font-size: 11px; padding: 10px 0; border-bottom: 0.5px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);">
+      Section A
+    </div>
+    <div style="font-size: 11px; padding: 10px 0; border-bottom: 0.5px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);">
+      Section B
+    </div>
+    <div style="font-size: 11px; padding: 10px 0; color: rgba(255,255,255,0.7);">
+      Section C
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

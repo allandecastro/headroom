@@ -1,0 +1,268 @@
+/* Headroom design tokens — keep in sync with src/index.css */
+
+:root {
+  --bg-window: rgba(248, 247, 244, 0.96);
+  --bg-window-opaque: #f8f7f4;
+  --bg-secondary: rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-emphasis: rgba(0, 0, 0, 0.15);
+  --fg-primary: rgba(26, 26, 26, 0.92);
+  --fg-secondary: rgba(26, 26, 26, 0.72);
+  --fg-tertiary: rgba(26, 26, 26, 0.5);
+  --fg-quaternary: rgba(26, 26, 26, 0.3);
+
+  /* Status colors (light mode) */
+  --ok-fill: #6a8e4a;
+  --ok-text: #5a7d3a;
+  --warn-fill: #c08a2a;
+  --warn-text: #a87420;
+  --crit-fill: #b03533;
+  --crit-text: #9c2e2c;
+
+  /* Wallpaper background — only used in mockup pages to fake vibrancy */
+  --wallpaper: linear-gradient(135deg, #d4cdbd 0%, #bfb6a3 50%, #a89e89 100%);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI Variable',
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SF Mono, Menlo, 'Cascadia Code', 'Source Code Pro',
+    monospace;
+}
+
+.dark {
+  --bg-window: rgba(22, 24, 30, 0.94);
+  --bg-window-opaque: rgba(22, 24, 30, 0.99);
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-emphasis: rgba(255, 255, 255, 0.15);
+  --fg-primary: rgba(255, 255, 255, 0.92);
+  --fg-secondary: rgba(255, 255, 255, 0.78);
+  --fg-tertiary: rgba(255, 255, 255, 0.5);
+  --fg-quaternary: rgba(255, 255, 255, 0.3);
+
+  --ok-fill: #8ab368;
+  --ok-text: #9bc176;
+  --warn-fill: #d99c52;
+  --warn-text: #e0a85e;
+  --crit-fill: #d4625d;
+  --crit-text: #e07670;
+
+  --wallpaper: linear-gradient(135deg, #2a3142 0%, #1c2030 50%, #0e1119 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--wallpaper);
+  color: var(--fg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  gap: 28px;
+}
+
+.label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.stage-row {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ============================================================
+   SURFACE — the translucent popover container
+   ============================================================ */
+.surface {
+  background: var(--bg-window);
+  border: 0.5px solid var(--border-default);
+  border-radius: 12px;
+  padding: 14px 14px 10px;
+  color: var(--fg-primary);
+}
+
+/* ============================================================
+   SECTION — one service block inside the popover
+   ============================================================ */
+.section {
+  padding: 8px 0;
+}
+.section + .section {
+  border-top: 0.5px solid var(--border-default);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-tertiary);
+}
+.section-head .name {
+  color: var(--fg-secondary);
+}
+.section-head .plan {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--fg-quaternary);
+}
+.section-head svg {
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   QUOTA ROW
+   ============================================================ */
+.quota {
+  margin-bottom: 9px;
+}
+.quota:last-child {
+  margin-bottom: 0;
+}
+
+.quota-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.quota-line .label-text {
+  color: var(--fg-secondary);
+}
+.quota-line .nums {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.quota-line .nums .used {
+  font-weight: 500;
+}
+.quota-line .nums .total {
+  color: var(--fg-quaternary);
+}
+
+.bar {
+  height: 2px;
+  margin: 4px 0 3px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--ok-fill);
+}
+.bar-fill.warn {
+  background: var(--warn-fill);
+}
+.bar-fill.crit {
+  background: var(--crit-fill);
+}
+
+.quota-meta {
+  font-size: 9.5px;
+  color: var(--fg-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-advice {
+  font-size: 9.5px;
+  margin-top: 1px;
+  color: var(--crit-text);
+}
+
+.text-warn {
+  color: var(--warn-text);
+}
+.text-crit {
+  color: var(--crit-text);
+}
+
+/* ============================================================
+   FOOTER — refresh, history, settings, quit
+   ============================================================ */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 0.5px solid var(--border-default);
+  font-size: 9.5px;
+  color: var(--fg-tertiary);
+}
+.footer .refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.footer .icons {
+  display: inline-flex;
+  gap: 12px;
+}
+.footer .icons span {
+  cursor: default;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  font-size: 11px;
+  padding: 5px 12px;
+  background: transparent;
+  border: 0.5px solid var(--border-emphasis);
+  border-radius: 5px;
+  color: var(--fg-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--ok-fill);
+  border-color: var(--ok-fill);
+  color: #fafafa;
+}
+
+/* ============================================================
+   BRAND MARK (inline SVG container)
+   ============================================================ */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Headroom · Tray icons</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #1c2030 0%, #0e1119 100%);
+      padding: 40px 24px;
+    }
+
+    .panel {
+      width: min(880px, 100%);
+      background: rgba(22,24,30,0.96);
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 24px 28px 22px;
+    }
+    .panel h2 {
+      font-size: 12px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.5);
+      margin: 0 0 18px;
+    }
+
+    table.grid {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table.grid th, table.grid td {
+      padding: 12px 10px;
+      text-align: center;
+      border-bottom: 0.5px solid rgba(255,255,255,0.08);
+    }
+    table.grid th {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.5);
+    }
+    table.grid td:first-child {
+      text-align: left;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      width: 90px;
+    }
+    table.grid tr:last-child td { border-bottom: none; }
+
+    .mb-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+    .mb-row.dark-bar { background: rgba(28,30,38,0.95); color: rgba(255,255,255,0.85); }
+    .mb-row.light-bar { background: rgba(240,238,232,0.95); color: rgba(26,26,26,0.85); }
+
+    .mb-cluster {
+      display: flex; align-items: center; gap: 18px;
+    }
+    .mb-cluster .label-pair {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============ ICON SIZE MATRIX ============ -->
+<div class="panel">
+  <h2>States × sizes</h2>
+  <table class="grid">
+    <thead>
+      <tr>
+        <th></th>
+        <th>16</th>
+        <th>22</th>
+        <th>32</th>
+        <th>64</th>
+        <th>128</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- OK -->
+      <tr>
+        <td>OK</td>
+        <td><svg width="16" height="16" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg></td>
+        <td><svg width="22" height="22" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg></td>
+        <td><svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg></td>
+        <td><svg width="64" height="64" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg></td>
+        <td><svg width="128" height="128" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg></td>
+      </tr>
+      <!-- WARN -->
+      <tr>
+        <td>Warn</td>
+        <td><svg width="16" height="16" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg></td>
+        <td><svg width="22" height="22" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg></td>
+        <td><svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg></td>
+        <td><svg width="64" height="64" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg></td>
+        <td><svg width="128" height="128" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg></td>
+      </tr>
+      <!-- CRIT -->
+      <tr>
+        <td>Critical</td>
+        <td><svg width="16" height="16" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg></td>
+        <td><svg width="22" height="22" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg></td>
+        <td><svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg></td>
+        <td><svg width="64" height="64" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg></td>
+        <td><svg width="128" height="128" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg></td>
+      </tr>
+      <!-- UNREACHABLE -->
+      <tr>
+        <td>Unreach.</td>
+        <td><svg width="16" height="16" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg></td>
+        <td><svg width="22" height="22" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg></td>
+        <td><svg width="32" height="32" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg></td>
+        <td><svg width="64" height="64" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg></td>
+        <td><svg width="128" height="128" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ MENU BAR PREVIEW ============ -->
+<div class="panel" style="margin-top: 28px">
+  <h2>In context — macOS menu bar</h2>
+
+  <p style="font-size:11px; color: rgba(255,255,255,0.5); margin: 0 0 14px;">Tray badge shows the worst percentage across all services, color-coded.</p>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+
+    <div class="mb-row dark-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#8ab368" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#8ab368"/></svg>
+          <span>67%</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">healthy</span>
+      </div>
+    </div>
+
+    <div class="mb-row dark-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d99c52" opacity="0.55"/><rect x="9" y="12.9" width="14" height="14.1" rx="1.5" fill="#d99c52"/></svg>
+          <span style="color:#d99c52">84%</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">approaching cap</span>
+      </div>
+    </div>
+
+    <div class="mb-row dark-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#d4625d" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#d4625d"/></svg>
+          <span style="color:#d4625d">96%</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">critical</span>
+      </div>
+    </div>
+
+    <div class="mb-row dark-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)" stroke-dasharray="2 2.2"/><rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/></svg>
+          <span style="color: rgba(255,255,255,0.45)">—</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">unreachable, no badge</span>
+      </div>
+    </div>
+
+  </div>
+
+  <p style="font-size:11px; color: rgba(255,255,255,0.5); margin: 16px 0 14px;">On light menu bars (macOS Light mode, some Linux DEs), the same icon inverts via the template flag.</p>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="mb-row light-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#6a8e4a" opacity="0.55"/><rect x="9" y="17.1" width="14" height="9.9" rx="1.5" fill="#6a8e4a"/></svg>
+          <span>67%</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">healthy</span>
+      </div>
+    </div>
+    <div class="mb-row light-bar">
+      <div class="mb-cluster">
+        <div class="label-pair">
+          <svg width="14" height="14" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="#b03533" opacity="0.65"/><rect x="9" y="9.7" width="14" height="17.3" rx="1.5" fill="#b03533"/></svg>
+          <span style="color:#b03533">96%</span>
+        </div>
+        <span style="opacity:0.4; font-family: var(--font-sans); font-size: 11px;">critical</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="label">Tray icons · ceiling-and-bar geometry, fill height = percentage used</div>
+
+</body>
+</html>

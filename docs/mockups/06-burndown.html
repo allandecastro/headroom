@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>Headroom · Burndown chart</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: linear-gradient(135deg, #2a3142 0%, #1c2030 50%, #0e1119 100%); }
+    .popover { width: 360px; }
+    .chart-wrap { margin: 6px -2px 0; }
+    .chart-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 10px;
+      color: var(--fg-tertiary);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .pace {
+      font-size: 11px;
+      color: var(--fg-secondary);
+      margin-top: 10px;
+      display: flex; align-items: baseline; justify-content: space-between;
+    }
+    .pace .verdict {
+      color: var(--warn-text);
+      font-weight: 500;
+    }
+
+    .tabs {
+      display: flex; gap: 4px;
+      padding: 2px;
+      background: var(--bg-secondary);
+      border-radius: 5px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 4px 8px;
+      font-size: 10.5px;
+      color: var(--fg-tertiary);
+      border-radius: 3px;
+    }
+    .tab.active {
+      background: rgba(255,255,255,0.06);
+      color: var(--fg-primary);
+    }
+  </style>
+</head>
+<body>
+
+<div class="stage-col">
+  <div class="surface popover dark">
+
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab">Now</div>
+      <div class="tab active">Week</div>
+      <div class="tab">History</div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="section-head" style="margin-bottom: 4px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/>
+      </svg>
+      <span class="name">Sonnet · weekly</span>
+      <span class="plan">77 / 100</span>
+    </div>
+
+    <!-- CHART -->
+    <div class="chart-wrap">
+      <svg viewBox="0 0 332 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- gridlines (100% / 75% / 50% / 25% / 0%) -->
+        <line x1="22" y1="14"  x2="320" y2="14"  stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+        <line x1="22" y1="40"  x2="320" y2="40"  stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+        <line x1="22" y1="66"  x2="320" y2="66"  stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+        <line x1="22" y1="92"  x2="320" y2="92"  stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+        <line x1="22" y1="118" x2="320" y2="118" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+
+        <!-- y-axis labels -->
+        <text x="18" y="17"  text-anchor="end" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">100</text>
+        <text x="18" y="69"  text-anchor="end" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">50</text>
+        <text x="18" y="121" text-anchor="end" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">0</text>
+
+        <!-- x-axis labels: days, with today marker -->
+        <text x="42"  y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Mon</text>
+        <text x="84"  y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Tue</text>
+        <text x="126" y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Wed</text>
+        <text x="168" y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.92)" font-weight="500">Thu</text>
+        <text x="210" y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Fri</text>
+        <text x="252" y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Sat</text>
+        <text x="294" y="128" text-anchor="middle" font-family="ui-monospace, monospace" font-size="8" fill="rgba(255,255,255,0.4)">Sun</text>
+
+        <!-- "today" vertical marker -->
+        <line x1="168" y1="14" x2="168" y2="118" stroke="rgba(255,255,255,0.15)" stroke-width="0.5" stroke-dasharray="2 2"/>
+
+        <!-- actual usage line (Mon → Thu now) -->
+        <polyline
+          points="42,114 84,98 126,72 168,40"
+          fill="none"
+          stroke="#8ab368"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+        <!-- area under actual line -->
+        <polyline
+          points="42,118 42,114 84,98 126,72 168,40 168,118"
+          fill="#8ab368"
+          fill-opacity="0.08"/>
+
+        <!-- projection (Thu → Sun, dashed) -->
+        <polyline
+          points="168,40 210,28 252,16 294,4"
+          fill="none"
+          stroke="#d99c52"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-dasharray="3 2"/>
+
+        <!-- 100% cap line -->
+        <line x1="22" y1="14" x2="320" y2="14" stroke="#d4625d" stroke-width="0.5" stroke-dasharray="2 2"/>
+        <text x="324" y="17" text-anchor="start" font-family="ui-monospace, monospace" font-size="8" fill="#d4625d">cap</text>
+
+        <!-- "now" dot -->
+        <circle cx="168" cy="40" r="2.5" fill="#8ab368"/>
+        <circle cx="168" cy="40" r="4.5" fill="#8ab368" fill-opacity="0.2"/>
+
+        <!-- projected cap-hit marker -->
+        <circle cx="290" cy="6" r="2.5" fill="#d4625d" fill-opacity="0.7"/>
+      </svg>
+    </div>
+
+    <div class="chart-meta">
+      <span>solid: actual</span>
+      <span>dashed: projected at current pace</span>
+    </div>
+
+    <div class="pace">
+      <span>At this pace</span>
+      <span class="verdict">cap hit Sun 02:14</span>
+    </div>
+
+    <div class="footer">
+      <span class="refresh">↻ 18s ago</span>
+      <span class="icons"><span>⌧</span><span>⚙</span><span>⏻</span></span>
+    </div>
+
+  </div>
+  <div class="label">Burndown chart · Phase 2 · Sonnet weekly window with linear projection</div>
+</div>
+
+</body>
+</html>
