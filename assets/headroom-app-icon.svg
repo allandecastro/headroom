@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 88" role="img" aria-label="Headroom">
+  <title>Headroom</title>
+  <rect width="88" height="88" rx="20" fill="#16181e"/>
+  <g transform="translate(12, 12)" fill="#f0eee6">
+    <rect x="10" y="11" width="44" height="4" rx="1"/>
+    <rect x="25" y="26" width="14" height="27" rx="1.5"/>
+  </g>
+</svg>
