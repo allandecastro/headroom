@@ -1,3 +1,7 @@
+<p>
+  <img src="assets/headroom-mark.svg" width="48" alt="Headroom" />
+</p>
+
 # Headroom
 
 > Know your headroom. A menu bar app that tracks your Claude Code and GitHub Copilot quotas before you hit them.
