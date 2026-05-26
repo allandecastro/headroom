@@ -101,7 +101,7 @@ headroom/
 
 #### Regenerating icons
 
-Tray icons (state-dependent: ok / warn / crit / unreachable):
+Tray icons (state-dependent, rasterized from SVG sources in `assets/tray/`):
 
 ```bash
 python3 scripts/build_tray_icons.py
@@ -114,6 +114,12 @@ rsvg-convert -w 1024 -h 1024 \
   assets/headroom-app-icon.svg -o /tmp/headroom-source.png
 npx tauri icon /tmp/headroom-source.png
 rm /tmp/headroom-source.png
+```
+
+Both workflows require `rsvg-convert` (librsvg):
+
+```bash
+brew install librsvg
 ```
 
 ---
