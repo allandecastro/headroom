@@ -14,7 +14,9 @@ export function TokenCard({ service }: Props) {
             ⚠ unreachable
           </span>
         </header>
-        <div className="text-2xs text-fg-quaternary italic">{service.error_detail ?? 'No data available'}</div>
+        <div className="text-2xs text-fg-quaternary italic">
+          {service.error_detail ?? 'No data available'}
+        </div>
       </section>
     );
   }

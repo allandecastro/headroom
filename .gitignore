@@ -1,6 +1,9 @@
 # Node
 node_modules/
-dist/
+# dist is build output, but a tracked stub keeps the Rust crate compilable
+# standalone (generate_context! requires frontendDist to exist).
+dist/*
+!dist/.gitkeep
 .vite/
 *.log
 npm-debug.log*

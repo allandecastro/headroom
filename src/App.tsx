@@ -27,11 +27,7 @@ export default function App() {
   }, []);
 
   if (!snapshot) {
-    return (
-      <div className="surface p-4 text-fg-tertiary text-xs">
-        Loading…
-      </div>
-    );
+    return <div className="surface p-4 text-fg-tertiary text-xs">Loading…</div>;
   }
 
   const polledAgoSec = Math.floor((Date.now() - snapshot.polled_at * 1000) / 1000);
@@ -44,15 +40,19 @@ export default function App() {
 
       <footer className="flex justify-between items-center mt-1 pt-2 border-t border-hairline border-default text-2xs text-fg-tertiary">
         <button
-          onClick={() => invoke('refresh_all').then(setSnapshot)}
+          onClick={() => invoke<Snapshot>('refresh_all').then(setSnapshot)}
           className="inline-flex items-center gap-1.5 hover:text-fg-secondary"
         >
           <span aria-hidden>↻</span>
           {polledAgoSec}s ago
         </button>
         <span className="flex gap-3">
-          <button aria-label="History" className="hover:text-fg-secondary">⌧</button>
-          <button aria-label="Settings" className="hover:text-fg-secondary">⚙</button>
+          <button aria-label="History" className="hover:text-fg-secondary">
+            ⌧
+          </button>
+          <button aria-label="Settings" className="hover:text-fg-secondary">
+            ⚙
+          </button>
           <button
             aria-label="Quit"
             onClick={() => invoke('quit_app')}
