@@ -3,6 +3,7 @@
 //! See SPEC.md at the project root for the full architecture.
 
 mod credentials;
+mod settings;
 mod sources;
 mod tray;
 
@@ -10,11 +11,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 use crate::credentials::Credentials;
+use crate::settings::Settings;
 use crate::sources::{QuotaSource, ServiceStatus};
 
 /// Aggregate snapshot emitted to the renderer on each poll.
@@ -30,6 +32,7 @@ pub struct AppState {
     pub credentials: Credentials,
     pub sources: Vec<Arc<dyn QuotaSource>>,
     pub last_snapshot: RwLock<Option<Snapshot>>,
+    pub settings: RwLock<Settings>,
 }
 
 #[tauri::command]
@@ -102,6 +105,34 @@ fn clear_credentials(
     Ok(())
 }
 
+/// Return the current user settings.
+#[tauri::command]
+async fn get_settings(state: tauri::State<'_, Arc<AppState>>) -> Result<Settings, String> {
+    Ok(state.settings.read().await.clone())
+}
+
+/// Persist user settings (sanitized) and apply them to the running app. The
+/// poll loop reads `poll_interval_secs` from this state on its next tick.
+#[tauri::command]
+async fn set_settings(
+    state: tauri::State<'_, Arc<AppState>>,
+    settings: Settings,
+) -> Result<(), String> {
+    let settings = settings.sanitized();
+    settings.save().map_err(|e| e.to_string())?;
+    *state.settings.write().await = settings;
+    Ok(())
+}
+
+/// Show the onboarding window (used by the Settings "Re-authenticate" action).
+#[tauri::command]
+fn open_onboarding(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("onboarding") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 async fn poll_once(state: Arc<AppState>) -> Snapshot {
     let mut services = Vec::with_capacity(state.sources.len());
 
@@ -150,6 +181,7 @@ pub fn run() {
             Arc::new(sources::copilot::CopilotSource::default()),
         ],
         last_snapshot: RwLock::new(None),
+        settings: RwLock::new(Settings::load()),
     });
 
     tauri::Builder::default()
@@ -163,11 +195,27 @@ pub fn run() {
             set_copilot_token,
             set_copilot_username,
             set_copilot_plan,
-            clear_credentials
+            clear_credentials,
+            get_settings,
+            set_settings,
+            open_onboarding
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
             tray::install(app)?;
+
+            // First-run routing: with no stored credentials, surface the
+            // onboarding window rather than starting silently in the tray.
+            // The poll loop still runs (harmlessly reporting MissingCredentials)
+            // so it picks up credentials as soon as onboarding writes them.
+            let has_credentials = state.credentials.claude_session().is_some()
+                || state.credentials.copilot_token().is_some();
+            if !has_credentials {
+                if let Some(window) = app.get_webview_window("onboarding") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
 
             // Background polling loop
             let state_clone = state.clone();
@@ -179,7 +227,8 @@ pub fn run() {
                         error!(?e, "failed to emit tokens-updated");
                     }
                     tray::update_state(&handle, &snapshot);
-                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    let interval = state_clone.settings.read().await.poll_interval_secs;
+                    tokio::time::sleep(Duration::from_secs(interval)).await;
                 }
             });
 

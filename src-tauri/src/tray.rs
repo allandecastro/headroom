@@ -52,10 +52,10 @@ pub fn install(app: &mut tauri::App) -> tauri::Result<()> {
                 toggle_popover(app);
             }
             "onboarding" => {
-                show_onboarding(app);
+                show_window(app, "onboarding");
             }
             "settings" => {
-                // Settings window opens via a future IPC handler
+                show_window(app, "settings");
             }
             "quit" => {
                 app.exit(0);
@@ -88,13 +88,13 @@ fn toggle_popover(app: &AppHandle) {
     }
 }
 
-fn show_onboarding(app: &AppHandle) {
-    let Some(window) = app.get_webview_window("onboarding") else {
+fn show_window(app: &AppHandle, label: &str) {
+    let Some(window) = app.get_webview_window(label) else {
         return;
     };
     let _ = window.show();
     if let Err(e) = window.set_focus() {
-        error!(?e, "failed to focus onboarding window");
+        error!(?e, label, "failed to focus window");
     }
 }
 
