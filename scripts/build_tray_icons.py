@@ -9,6 +9,10 @@ Run from repo root:
 Outputs to src-tauri/icons/.
 """
 
+# NOTE: This script generates ONLY the tray state icons.
+# App bundle icons (32x32.png, icon.icns, icon.ico) come from
+# `npx tauri icon` — see README "Regenerating icons".
+
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -73,14 +77,6 @@ def main():
             out = OUT_DIR / name
             img.save(out, "PNG")
             print(f"wrote {out.relative_to(OUT_DIR.parent.parent)}")
-
-    # Also produce the app icons Tauri's bundler expects
-    # (these are different from tray — they're the app's dock/launcher icon)
-    base = draw_icon("ok", 32).resize((128, 128), Image.LANCZOS)
-    base.save(OUT_DIR / "32x32.png")
-    base.save(OUT_DIR / "128x128.png")
-    base.resize((256, 256), Image.LANCZOS).save(OUT_DIR / "128x128@2x.png")
-    print(f"wrote app icons to {OUT_DIR.relative_to(OUT_DIR.parent.parent)}/")
 
 
 if __name__ == "__main__":
