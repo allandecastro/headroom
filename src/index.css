@@ -59,6 +59,15 @@ body,
   .border-default {
     border-color: var(--border-default);
   }
+  .border-emphasis {
+    border-color: var(--border-emphasis);
+  }
+  .bg-window-opaque {
+    background: var(--bg-window-opaque);
+  }
+  .bg-secondary {
+    background: var(--bg-secondary);
+  }
   .text-fg-primary {
     color: var(--fg-primary);
   }

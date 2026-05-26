@@ -38,9 +38,10 @@ impl TrayState {
 
 pub fn install(app: &mut tauri::App) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show Headroom", true, None::<&str>)?;
+    let onboarding = MenuItem::with_id(app, "onboarding", "Set up accounts…", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &settings, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &onboarding, &settings, &quit])?;
 
     TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(TrayState::Ok.icon_bytes())?)
@@ -49,6 +50,9 @@ pub fn install(app: &mut tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {
                 toggle_popover(app);
+            }
+            "onboarding" => {
+                show_onboarding(app);
             }
             "settings" => {
                 // Settings window opens via a future IPC handler
@@ -81,6 +85,16 @@ fn toggle_popover(app: &AppHandle) {
     };
     if let Err(e) = action {
         error!(?e, "failed to toggle popover");
+    }
+}
+
+fn show_onboarding(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("onboarding") else {
+        return;
+    };
+    let _ = window.show();
+    if let Err(e) = window.set_focus() {
+        error!(?e, "failed to focus onboarding window");
     }
 }
 
