@@ -27,9 +27,8 @@ jobs:
           draft: true
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
           body: |
-            See [CHANGELOG.md](CHANGELOG.md) for changes in this release.
-
             **Downloads:**
             - macOS Apple Silicon: `Headroom_*_aarch64.dmg`
             - Windows: `Headroom_*_x64-setup.msi`
