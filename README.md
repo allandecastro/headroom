@@ -1,4 +1,4 @@
-<p>
+<p align="center">
   <img src="assets/headroom-mark.svg" width="48" alt="Headroom" />
 </p>
 
