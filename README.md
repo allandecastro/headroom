@@ -1,12 +1,42 @@
 <p align="center">
-  <img src="assets/headroom-mark.svg" width="48" alt="Headroom" />
+  <img src="assets/headroom-app-icon.svg" alt="Headroom" width="120" height="120" />
 </p>
 
-# Headroom
+<h1 align="center">Headroom</h1>
 
-> Know your headroom. A menu bar app that tracks your Claude Code and GitHub Copilot quotas before you hit them.
+<p align="center">
+  <strong>Know your headroom — a menu bar app that tracks Claude Code and GitHub Copilot quotas before you hit them.</strong>
+</p>
 
-![CI](https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg)
+<p align="center">
+  <img src="https://img.shields.io/badge/status-pre--alpha-orange?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License" />
+  <a href="https://github.com/allandecastro/headroom/actions/workflows/ci.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/allandecastro/headroom/actions/workflows/release.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/release.yml/badge.svg" alt="CD" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS" />
+  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Tauri_2-24C8DB?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2" />
+  <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust" />
+  <img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> &bull;
+  <a href="#install">Install</a> &bull;
+  <a href="#development">Development</a> &bull;
+  <a href="#documentation">Documentation</a> &bull;
+  <a href="#license">License</a>
+</p>
+
+---
 
 Headroom sits in your menu bar and shows, at a glance, how much of your AI coding assistant budget you have left — across the rolling 5-hour window, the 7-day weekly cap, and the monthly Copilot allowance. It tells you when to switch from Opus to Sonnet, how long until the next reset, and projects whether you'll make it to Monday at your current pace.
 
