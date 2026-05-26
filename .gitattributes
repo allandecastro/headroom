@@ -1,0 +1,9 @@
+# Normalize line endings: store and check out text as LF on every platform.
+# This ends the CRLF churn on Windows (core.autocrlf) and keeps Prettier /
+# rustfmt / CI consistent regardless of who commits.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.ico binary
+*.icns binary
