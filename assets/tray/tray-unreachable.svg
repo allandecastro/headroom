@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Headroom · Unreachable">
+  <title>Unreachable</title>
+  <rect x="6" y="6" width="20" height="1.6" rx="0.8" fill="rgba(255,255,255,0.45)"/>
+  <rect x="9" y="13" width="14" height="14" rx="1.5" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2" stroke-dasharray="2 2.2"/>
+</svg>

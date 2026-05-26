@@ -45,3 +45,4 @@ coverage/
 # Misc
 .claude/
 .cache/
+__pycache__/
