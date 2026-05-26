@@ -63,6 +63,7 @@ When making a change:
 - **Don't refactor existing code "while you're in there."** Mixed-purpose PRs are hard to review. Open a separate PR for the cleanup.
 - **Don't suppress lint warnings with `#[allow(...)]` or `// eslint-disable`** without a comment explaining why. CI will flag silent suppressions.
 - **Don't change `tauri.conf.json` window settings** (transparency, vibrancy, decorations) without testing on all three platforms. These settings interact in non-obvious ways across OSes.
+- **Don't rasterize the brand mark into the renderer bundle.** PNG copies exist for tray icons and the macOS/Windows app bundle only — never for UI use.
 
 ## Patterns to follow
 
@@ -87,6 +88,7 @@ Errors flow source → orchestrator → renderer. The state machine in `src-taur
 - The project prioritizes refinement over feature breadth. A new dropdown or hover state usually gets rejected; a new source adapter or a fix for a real bug gets merged fast.
 - The visual design (mockups in `docs/mockups/`) is settled. Resist the urge to "improve" the popover — design changes should come from explicit design discussions, not from PR side effects.
 - The data acquisition strategy is fragile by nature (we depend on undocumented Anthropic endpoints and the official-but-evolving GitHub billing API). Resilience matters more than DRY. Two source adapters that share 80% of their HTTP boilerplate are fine; abstracting that boilerplate into a `BaseSource` is not.
+- The brand mark source of truth is `assets/headroom-mark.svg`. In the React UI, never import the SVG file directly — use the `<BrandMark />` component from `src/components/BrandMark.tsx`. The component renders inline SVG with `fill="currentColor"`, which lets the mark inherit color from its container via Tailwind classes (e.g. `<BrandMark className="text-fg-primary" />`).
 
 ## When in doubt
 
