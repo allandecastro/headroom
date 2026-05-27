@@ -53,26 +53,28 @@ export default function App() {
               <TokenCard key={svc.id} service={svc} showClaudeDesign={showClaudeDesign} />
             ))}
 
-            <footer className="mt-2 flex items-center justify-between pt-1 text-2xs text-fg-tertiary">
+            <footer className="mt-2 flex items-center justify-between pt-1 text-[12px] text-fg-tertiary">
               <button
                 onClick={() => invoke<Snapshot>('refresh_all').then(setSnapshot)}
                 className="inline-flex items-center gap-1.5 hover:text-fg-secondary"
               >
-                <span aria-hidden>↻</span>
+                <span aria-hidden className="text-[16px] leading-none">
+                  ↻
+                </span>
                 {polledAgoSec}s ago
               </button>
-              <span className="flex gap-3">
+              <span className="flex gap-4">
                 <button
                   aria-label="Settings"
                   onClick={() => openSettings().catch(console.error)}
-                  className="hover:text-fg-secondary"
+                  className="text-[17px] leading-none hover:text-fg-secondary"
                 >
                   ⚙
                 </button>
                 <button
                   aria-label="Quit"
                   onClick={() => invoke('quit_app')}
-                  className="hover:text-fg-secondary"
+                  className="text-[17px] leading-none hover:text-fg-secondary"
                 >
                   ⏻
                 </button>

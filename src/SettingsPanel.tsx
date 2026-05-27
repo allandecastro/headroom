@@ -326,7 +326,12 @@ export default function SettingsPanel() {
         {/* ABOUT */}
         <Group label="About">
           <Row>
-            <span className="flex-1 text-[12px] text-fg-secondary">Headroom v0.1.0</span>
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Headroom · v0.1.0</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Know your headroom — quota meter for Claude & GitHub Copilot
+              </span>
+            </div>
             <span className="text-[10.5px] text-fg-quaternary">Check for updates</span>
           </Row>
           <Row>
