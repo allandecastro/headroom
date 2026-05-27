@@ -56,6 +56,10 @@ pub struct Quota {
     pub resets_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub advice: Option<String>,
+    /// Burndown projection, filled in by the orchestrator after fetch (sources
+    /// leave it `None`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub projection: Option<crate::projection::Projection>,
 }
 
 #[derive(Debug, Clone, Serialize)]

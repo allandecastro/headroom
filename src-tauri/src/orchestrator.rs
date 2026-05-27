@@ -40,8 +40,22 @@ pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
         services.push(status);
     }
 
+    // Attach a burndown projection to each quota (sources leave it None).
+    let now = chrono::Utc::now();
+    for service in &mut services {
+        for quota in &mut service.quotas {
+            let used_pct = if quota.total > 0.0 {
+                (quota.used / quota.total) * 100.0
+            } else {
+                0.0
+            };
+            quota.projection =
+                crate::projection::project(used_pct, quota.window, quota.resets_at, now);
+        }
+    }
+
     let snapshot = Snapshot {
-        polled_at: chrono::Utc::now().timestamp(),
+        polled_at: now.timestamp(),
         services,
     };
 

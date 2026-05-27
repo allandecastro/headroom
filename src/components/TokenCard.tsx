@@ -95,6 +95,12 @@ function QuotaRow({ quota }: { quota: Quota }) {
       <div className="text-2xs text-fg-tertiary tabular-nums">
         {formatResetTime(quota.resets_at)}
       </div>
+      {quota.projection?.will_exceed && (
+        <div className="text-2xs mt-0.5 text-state-warn-text-dark">
+          On track to exceed · ~{Math.round(quota.projection.projected_pct)}% by reset
+          {quota.projection.eta && ` · full ${relativeFromNow(quota.projection.eta)}`}
+        </div>
+      )}
       {state === 'crit' && quota.advice && (
         <div className={`text-2xs mt-0.5 ${stateClasses.text}`}>{quota.advice}</div>
       )}
@@ -106,6 +112,18 @@ function formatNumber(value: number, unit: string): string {
   if (unit === 'hours') return `${Math.round(value)}h`;
   if (unit === 'usd_credits') return `$${value.toFixed(2)}`;
   return value.toLocaleString('en-US');
+}
+
+function relativeFromNow(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now();
+  if (diffMs <= 0) return 'now';
+  const totalMin = Math.floor(diffMs / 60_000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  if (days >= 1) return `in ${days}d ${hours}h`;
+  if (hours >= 1) return `in ${hours}h ${mins}m`;
+  return `in ${mins}m`;
 }
 
 function formatResetTime(resetsAt: string): string {
