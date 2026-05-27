@@ -56,10 +56,6 @@
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://claude.ai https://api.github.com https://github.com ipc: http://ipc.localhost"
-    },
-    "trayIcon": {
-      "iconPath": "icons/tray-ok.png",
-      "iconAsTemplate": false
     }
   },
   "bundle": {
