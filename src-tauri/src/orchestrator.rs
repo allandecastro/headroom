@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
 
 use crate::notifications::notify_thresholds;
-use crate::sources::{ServiceStatus, SourceError};
+use crate::sources::{ServiceState, ServiceStatus, SourceError};
 use crate::tray;
 use crate::{AppState, Snapshot};
 
@@ -40,18 +40,36 @@ pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
         services.push(status);
     }
 
-    // Attach a burndown projection to each quota (sources leave it None).
+    // Attach the burndown projection + sparkline to each quota (sources leave
+    // them empty). Record active quotas into history under the lock, then
+    // persist outside it to keep file I/O off the lock.
     let now = chrono::Utc::now();
-    for service in &mut services {
-        for quota in &mut service.quotas {
-            let used_pct = if quota.total > 0.0 {
-                (quota.used / quota.total) * 100.0
-            } else {
-                0.0
-            };
-            quota.projection =
-                crate::projection::project(used_pct, quota.window, quota.resets_at, now);
+    let now_secs = now.timestamp();
+    let mut to_persist = Vec::new();
+    {
+        let mut history = state.history.write().await;
+        for service in &mut services {
+            let id = service.id.clone();
+            let active = matches!(service.state, ServiceState::Active);
+            for quota in &mut service.quotas {
+                let used_pct = if quota.total > 0.0 {
+                    (quota.used / quota.total) * 100.0
+                } else {
+                    0.0
+                };
+                quota.projection =
+                    crate::projection::project(used_pct, quota.window, quota.resets_at, now);
+                if active {
+                    if let Some(sample) = history.record(&id, quota.window, used_pct, now_secs) {
+                        to_persist.push(sample);
+                    }
+                    quota.sparkline = history.sparkline(&id, quota.window, now_secs);
+                }
+            }
         }
+    }
+    for sample in &to_persist {
+        crate::history::append_to_file(sample);
     }
 
     let snapshot = Snapshot {
@@ -177,6 +195,7 @@ mod tests {
             last_snapshot: RwLock::new(None),
             settings: RwLock::new(Settings::default()),
             notified: RwLock::new(HashMap::new()),
+            history: RwLock::new(crate::history::History::default()),
         })
     }
 

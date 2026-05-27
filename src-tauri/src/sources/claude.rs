@@ -230,6 +230,7 @@ impl UsageResponse {
                 resets_at: w.resets_at.unwrap_or_else(chrono::Utc::now),
                 advice,
                 projection: None,
+                sparkline: vec![],
             });
         }
 

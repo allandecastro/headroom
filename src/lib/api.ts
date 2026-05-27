@@ -27,6 +27,7 @@ export interface Quota {
   resets_at: string; // ISO 8601
   advice?: string;
   projection?: Projection;
+  sparkline?: number[]; // downsampled recent utilization for a sparkline
 }
 
 export interface ServiceStatus {

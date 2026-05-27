@@ -95,10 +95,26 @@ function QuotaRow({ quota }: { quota: Quota }) {
       <div className="text-2xs text-fg-tertiary tabular-nums">
         {formatResetTime(quota.resets_at)}
       </div>
-      {quota.projection?.will_exceed && (
-        <div className="text-2xs mt-0.5 text-state-warn-text-dark">
-          On track to exceed · ~{Math.round(quota.projection.projected_pct)}% by reset
-          {quota.projection.eta && ` · full ${relativeFromNow(quota.projection.eta)}`}
+      {(quota.projection || (quota.sparkline?.length ?? 0) >= 2) && (
+        <div className="mt-1 flex items-center gap-2">
+          {(quota.sparkline?.length ?? 0) >= 2 && (
+            <span className={state === 'ok' ? 'text-fg-tertiary' : stateClasses.text}>
+              <Sparkline points={quota.sparkline!} />
+            </span>
+          )}
+          {quota.projection && (
+            <span
+              className={`text-2xs ${
+                quota.projection.will_exceed ? 'text-state-warn-text-dark' : 'text-fg-tertiary'
+              }`}
+            >
+              {quota.projection.will_exceed
+                ? `On track to exceed · ~${Math.round(quota.projection.projected_pct)}% by reset${
+                    quota.projection.eta ? ` · full ${relativeFromNow(quota.projection.eta)}` : ''
+                  }`
+                : `On track · ~${Math.round(quota.projection.projected_pct)}% by reset`}
+            </span>
+          )}
         </div>
       )}
       {state === 'crit' && quota.advice && (
@@ -112,6 +128,32 @@ function formatNumber(value: number, unit: string): string {
   if (unit === 'hours') return `${Math.round(value)}h`;
   if (unit === 'usd_credits') return `$${value.toFixed(2)}`;
   return value.toLocaleString('en-US');
+}
+
+// Tiny inline sparkline of recent utilization (0–100%), inheriting currentColor.
+function Sparkline({ points }: { points: number[] }) {
+  const W = 48;
+  const H = 12;
+  const n = points.length;
+  const coords = points
+    .map((p, i) => {
+      const x = (i / (n - 1)) * W;
+      const y = H - (Math.min(100, Math.max(0, p)) / 100) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block">
+      <polyline
+        points={coords}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 function relativeFromNow(iso: string): string {

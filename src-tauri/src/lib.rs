@@ -4,6 +4,7 @@
 
 mod commands;
 mod credentials;
+mod history;
 mod notifications;
 mod orchestrator;
 mod projection;
@@ -37,6 +38,8 @@ pub struct AppState {
     /// Highest threshold (0/warn/crit) already fired per "service:quota", so we
     /// alert once per crossing.
     pub notified: RwLock<std::collections::HashMap<String, u8>>,
+    /// Persisted per-quota usage history, for the popover sparkline.
+    pub history: RwLock<history::History>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -57,6 +60,7 @@ pub fn run() {
         last_snapshot: RwLock::new(None),
         settings: RwLock::new(Settings::load()),
         notified: RwLock::new(std::collections::HashMap::new()),
+        history: RwLock::new(history::History::load()),
     });
 
     tauri::Builder::default()

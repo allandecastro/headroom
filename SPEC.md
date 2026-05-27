@@ -223,7 +223,7 @@ Background Tokio task. Default tick: 30s, re-read from settings each cycle. On e
 4. Update tray state (worst-quota percentage drives the tooltip / title).
 5. Run `notify_thresholds()`.
 
-On-disk usage history (the 7-day burndown buffer) is **not yet implemented** — it is a Phase 2 item (see [ROADMAP.md](ROADMAP.md)).
+Usage history is recorded here too: each active quota's utilization is sampled into the `history` module (throttled to ~5-minute spacing), persisted to disk, and downsampled into the popover sparkline.
 
 ### `tray`
 
@@ -281,11 +281,11 @@ Two configurable thresholds drive local desktop notifications: a **warning** (or
 | Credentials         | OS keychain (service `headroom`)           | string    | implemented |
 | User preferences    | `dirs::config_dir()/headroom/settings.json`| JSON      | implemented |
 | Cached snapshots    | in-memory only (`last_snapshot`)           | n/a       | implemented |
-| Usage history       | `dirs::data_dir()/headroom/history.jsonl`  | JSONL     | planned (Phase 2) |
+| Usage history       | `dirs::data_dir()/headroom/history.jsonl`  | JSONL     | implemented |
 
 **Settings** (`settings.json`, written atomically and clamped on load): `poll_interval_secs`, `theme` (`auto`/`light`/`dark`), `show_tray_percentage`, `notify_warn_pct` (orange, 0 = off), `notify_crit_pct` (red, 0 = off), `show_claude_design`. Launch-at-login is managed by `tauri-plugin-autostart`, not stored here. Saving settings emits `settings-updated` so open windows react live (theme, Claude Design toggle).
 
-The history file (planned) will be append-only JSONL, one line per `{ ts, service, window, used, total }`, rolled at 30 days.
+The history file is append-only JSONL, one line per `{ ts, service, window, used_pct }`, loaded on startup and pruned to a 30-day retention horizon.
 
 ---
 
