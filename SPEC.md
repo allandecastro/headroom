@@ -65,18 +65,19 @@ User-Agent: Mozilla/5.0 ... (must look like a real browser to avoid Cloudflare c
 
 The `orgId` comes from a prior call to `GET https://claude.ai/api/organizations`, which returns an array; pick the user's primary org by `uuid`.
 
-**Response shape** (simplified):
+**Response shape** (confirmed against a live response — snake_case, no `plan` field):
 
 ```json
 {
-  "fiveHour": { "percentUsed": 63, "resetsAt": "2026-05-26T17:46:00Z" },
-  "weekly":   { "percentUsed": 77, "resetsAt": "2026-06-02T09:14:00Z" },
-  "weeklyOpus": { "percentUsed": 96, "resetsAt": "2026-06-02T09:14:00Z" },
-  "plan": "max_5x"
+  "five_hour":         { "utilization": 3,  "resets_at": "2026-05-26T17:46:00Z" },
+  "seven_day":         { "utilization": 32, "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_sonnet":  { "utilization": 1,  "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_opus":    { "utilization": 0,  "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_omelette":{ "utilization": 0,  "resets_at": "2026-06-02T09:14:00Z" }
 }
 ```
 
-(The actual field names will be confirmed by inspecting a real response during implementation. The shape above is the target schema; the source adapter normalizes whatever Anthropic returns into it.)
+Each window is `{ utilization: f64, resets_at: Option<DateTime> }`. The adapter maps them to UI rows: `five_hour` → "Current session", `seven_day` → "Weekly · 7d", `seven_day_sonnet` → "Sonnet · 7d", `seven_day_opus` → "Opus · 7d", and `seven_day_omelette` → "Claude Design" (hidden unless the user opts in via Settings). There is no plan field, so `plan` is left empty.
 
 **Cloudflare handling.** The endpoint is behind Cloudflare bot mitigation. Generic `curl` user agents get 403s. The Rust HTTP client must send a realistic UA and accept-language header. On 403, the orchestrator marks the source as `unreachable` and surfaces it to the UI rather than retrying in a tight loop.
 
@@ -115,6 +116,8 @@ Adapter sums `grossQuantity` where `product == "Copilot"`. The monthly limit (50
 
 Each source supports a primary "magic" path and a fallback paste path. Both paths produce the same artifact (a Bearer token or `sessionKey`) stored in the OS keychain.
 
+> **Current status (Phase 1).** Onboarding ships **paste-based** for both services — paste the Claude `sessionKey` and paste a Copilot PAT + username + plan. The Claude embedded-webview sign-in below is implemented (`start_claude_signin`) but kept secondary because identity-provider behaviour in the webview is inconsistent. The Copilot **device flow is not yet implemented** (Phase 2).
+
 ### Claude — primary: embedded webview
 
 1. User clicks "Sign in with Claude" in onboarding.
@@ -150,7 +153,7 @@ The "Advanced" panel accepts a fine-grained personal access token. Instructions 
 
 ### `sources/`
 
-A trait and per-service implementations. The orchestrator owns a `Vec<Box<dyn QuotaSource>>` and calls each on every poll tick.
+A trait and per-service implementations. The app state owns a `Vec<Arc<dyn QuotaSource>>` and the orchestrator calls each on every poll tick.
 
 ```rust
 #[async_trait]
@@ -161,19 +164,26 @@ pub trait QuotaSource: Send + Sync {
 }
 
 pub struct ServiceStatus {
-    pub service: String,
+    pub id: String,
+    pub name: String,
+    pub state: ServiceState,     // Active | NeedsSetup | AuthRequired | Unreachable
     pub plan: String,
     pub quotas: Vec<Quota>,
+    pub error_detail: Option<String>,
 }
 
 pub struct Quota {
-    pub window: QuotaWindow,    // FiveHour | WeeklySonnet | WeeklyOpus | Monthly
+    pub window: QuotaWindow,     // FiveHour | WeeklyAll | WeeklySonnet | WeeklyOpus | ClaudeDesign | Monthly
+    pub label: String,           // human row label, e.g. "Current session"
     pub used: f64,
     pub total: f64,
-    pub unit: QuotaUnit,         // Messages | Hours | Requests | UsdCredits
+    pub unit: QuotaUnit,         // Messages | Hours | Requests | UsdCredits | Percent
     pub resets_at: DateTime<Utc>,
+    pub advice: Option<String>,  // shown only in the critical state
 }
 ```
+
+A source that has no stored credentials returns `SourceError::MissingCredentials`, which the orchestrator renders as the `NeedsSetup` state (a "Not connected" card) rather than an error.
 
 ### `credentials`
 
@@ -195,19 +205,29 @@ The renderer writes these via IPC commands (the onboarding flow calls them; the 
 | `set_copilot_plan(plan)` | Validates `plan` against the recognized tiers, then writes `copilot.plan` |
 | `clear_credentials(service)` | Deletes every key under the `claude` or `copilot` prefix |
 
+### `commands`
+
+The `#[tauri::command]` IPC handlers exposed to the renderer: credential writes (`set_claude_session`, `set_copilot_*`, `clear_credentials`), settings (`get_settings`, `set_settings`), window control (`open_onboarding`, `open_settings`), autostart (`get_autostart`, `set_autostart`), `refresh_all`, `quit_app`, and `start_claude_signin`.
+
+### `notifications`
+
+Threshold-crossing desktop alerts. `crossed_threshold()` computes the highest enabled threshold a percentage has crossed (critical wins over warning); `notify_thresholds()` fires one notification per crossing and re-arms when the quota drops back below both thresholds.
+
 ### `orchestrator`
 
-Background Tokio task. Default tick: 30s. On each tick:
+Background Tokio task. Default tick: 30s, re-read from settings each cycle. On each tick:
 
-1. For each enabled source, call `fetch()` with a 10s timeout.
-2. Aggregate results into a snapshot.
-3. Emit `tokens-updated` event to the renderer with the snapshot.
-4. Update tray icon state (worst-quota percentage drives color).
-5. Persist snapshot to disk (rolling 7-day buffer for the burndown chart) at `~/.local/share/headroom/history.jsonl` (XDG on Linux, equivalent on Mac/Win via `dirs` crate).
+1. For each source, call `fetch()` with a 10s timeout.
+2. Aggregate results into a snapshot, persisted in memory as `last_snapshot`.
+3. Emit `tokens-updated` to the renderer.
+4. Update tray state (worst-quota percentage drives the tooltip / title).
+5. Run `notify_thresholds()`.
+
+On-disk usage history (the 7-day burndown buffer) is **not yet implemented** — it is a Phase 2 item (see [ROADMAP.md](ROADMAP.md)).
 
 ### `tray`
 
-Tray icon state machine. Four image variants (`ok`, `warn`, `crit`, `unreachable`) plus an optional title showing the worst percentage. On macOS, title is set via the native `set_title` API; on Windows the icon image itself is swapped to a variant baked with the percentage as a tiny number; on Linux it depends on the desktop environment.
+Tray icon state machine. Four image variants (`ok`, `warn`, `crit`, `unreachable`) drive colour from the worst quota. On macOS the worst percentage is shown next to the icon via the native `set_title` API; on Windows it is shown in the hover **tooltip** ("Headroom — N% used"), since Windows has no tray title. A single left-click (matched on button **release**) toggles the popover; the right-click menu offers Open / Set up accounts… / Settings… / Quit. The tray is built **once**, in code (`TrayIconBuilder`) — `tauri.conf.json` must **not** also declare a `trayIcon`, or two icons appear.
 
 ---
 
@@ -224,17 +244,17 @@ Tray icon state machine. Four image variants (`ok`, `warn`, `crit`, `unreachable
 ## State machine — service status
 
 ```
-            ┌──────────┐
-            │  empty   │
-            └─────┬────┘
-                  │ user signs in
-                  ▼
+            ┌─────────────┐
+            │ needs_setup │  (no stored credentials)
+            └──────┬──────┘
+                   │ user signs in / pastes credentials
+                   ▼
             ┌──────────┐
    ┌────────┤  active  ├─────────┐
    │        └─────┬────┘         │
    │              │              │
    │ 401/403      │ Cloudflare   │ network fail
-   │              │              │ × 3
+   │              │              │ / timeout
    ▼              ▼              ▼
 ┌────────────┐ ┌──────────────┐ ┌─────────────┐
 │ auth_      │ │ unreachable  │ │ unreachable │
@@ -242,20 +262,30 @@ Tray icon state machine. Four image variants (`ok`, `warn`, `crit`, `unreachable
 └────────────┘ └──────────────┘ └─────────────┘
 ```
 
-The renderer displays the current state per service. `active` shows quotas. The two `unreachable` states show a "Retry" button. `auth_required` shows "Sign in again."
+The renderer displays the current state per service (Rust enum `ServiceState`: `Active | NeedsSetup | AuthRequired | Unreachable`). `active` shows quotas; `needs_setup` shows a "Not connected — open Set up accounts…" card; `unreachable` shows the error detail; `auth_required` shows "Sign in again."
+
+---
+
+## Notifications
+
+Two configurable thresholds drive local desktop notifications: a **warning** (orange) and a **critical** (red), each a percentage where `0` means off and critical takes precedence. On every poll, each active quota's percentage is checked via `crossed_threshold()`; the first time it crosses an enabled threshold, one notification fires ("Heads up" / "Critical", with the service, quota label, and percentage). The crossing is recorded per `service:quota` so it does not re-fire, and re-arms once the quota drops back below both thresholds.
+
+> On Windows, toast notifications are attributed to the process's registered AppUserModelID. A correctly **installed** build (MSI/NSIS, which creates a Start Menu shortcut) shows "Headroom"; a loose `.exe` launched from a shell inherits that shell's identity instead.
 
 ---
 
 ## Storage
 
-| What                | Where                                      | Format    |
-| ------------------- | ------------------------------------------ | --------- |
-| Credentials         | OS keychain (service `headroom`)           | string    |
-| User preferences    | `dirs::config_dir()/headroom/settings.json`| JSON      |
-| Usage history       | `dirs::data_dir()/headroom/history.jsonl`  | JSONL     |
-| Cached snapshots    | in-memory only                             | n/a       |
+| What                | Where                                      | Format    | Status      |
+| ------------------- | ------------------------------------------ | --------- | ----------- |
+| Credentials         | OS keychain (service `headroom`)           | string    | implemented |
+| User preferences    | `dirs::config_dir()/headroom/settings.json`| JSON      | implemented |
+| Cached snapshots    | in-memory only (`last_snapshot`)           | n/a       | implemented |
+| Usage history       | `dirs::data_dir()/headroom/history.jsonl`  | JSONL     | planned (Phase 2) |
 
-The history file is append-only JSONL. Each line: `{ ts, service, window, used, total }`. Rolled at 30 days to prevent unbounded growth.
+**Settings** (`settings.json`, written atomically and clamped on load): `poll_interval_secs`, `theme` (`auto`/`light`/`dark`), `show_tray_percentage`, `notify_warn_pct` (orange, 0 = off), `notify_crit_pct` (red, 0 = off), `show_claude_design`. Launch-at-login is managed by `tauri-plugin-autostart`, not stored here. Saving settings emits `settings-updated` so open windows react live (theme, Claude Design toggle).
+
+The history file (planned) will be append-only JSONL, one line per `{ ts, service, window, used, total }`, rolled at 30 days.
 
 ---
 

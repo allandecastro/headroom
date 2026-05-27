@@ -9,7 +9,7 @@
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
 use tracing::error;
@@ -64,7 +64,15 @@ pub fn install(app: &mut tauri::App) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { .. } = event {
+            // Only a left-button *release* toggles the popover. Matching every
+            // Click fires on both press and release (double-toggle → flash),
+            // and a bare match also stole right-clicks from the context menu.
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
                 toggle_popover(tray.app_handle());
             }
         })
@@ -109,6 +117,7 @@ pub fn update_state(app: &AppHandle, snapshot: &Snapshot, show_percentage: bool)
             error!(?e, "failed to update tray icon");
         }
     }
+    // Title shows next to the macOS menu-bar icon; Windows ignores it.
     match worst_percentage(snapshot).filter(|_| show_percentage) {
         Some(pct) => {
             let _ = tray.set_title(Some(&format!("{pct}%")));
@@ -117,6 +126,13 @@ pub fn update_state(app: &AppHandle, snapshot: &Snapshot, show_percentage: bool)
             let _ = tray.set_title(None::<&str>);
         }
     }
+
+    // Tooltip is where the percentage is actually visible on Windows (on hover).
+    let tooltip = match worst_percentage(snapshot) {
+        Some(pct) if show_percentage => format!("Headroom — {pct}% used"),
+        _ => "Headroom".to_string(),
+    };
+    let _ = tray.set_tooltip(Some(&tooltip));
 }
 
 fn compute_state(snapshot: &Snapshot) -> TrayState {
@@ -126,6 +142,8 @@ fn compute_state(snapshot: &Snapshot) -> TrayState {
     for service in &snapshot.services {
         match service.state {
             ServiceState::Unreachable => any_unreachable = true,
+            // Not connected yet is not an alert condition for the tray icon.
+            ServiceState::NeedsSetup => {}
             ServiceState::Active => {
                 for q in &service.quotas {
                     let pct = (q.used / q.total) * 100.0;

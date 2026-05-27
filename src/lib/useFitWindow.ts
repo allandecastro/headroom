@@ -1,12 +1,29 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+import {
+  getCurrentWindow,
+  currentMonitor,
+  LogicalSize,
+  LogicalPosition,
+} from '@tauri-apps/api/window';
+
+// Rough Windows taskbar + title-bar heights (logical px). We anchor by the
+// content height, so add the title bar to keep the whole decorated window —
+// footer included — above the taskbar.
+const TASKBAR = 48;
+const TITLEBAR = 36;
+const MARGIN = 12;
 
 // Resize the current window's height to fit the referenced content element,
 // keeping a fixed width. Re-fits whenever the content's size changes (e.g. an
-// onboarding "advanced" form expanding). Used by the decorated onboarding and
-// settings windows so they're responsive to their content instead of a fixed box.
-export function useFitWindowHeight(ref: RefObject<HTMLElement | null>, width: number): void {
+// onboarding "advanced" form expanding). When `anchorBottomRight` is set (the
+// popover), it's also repositioned to the bottom-right corner near the tray so
+// it stays anchored as its height changes.
+export function useFitWindowHeight(
+  ref: RefObject<HTMLElement | null>,
+  width: number,
+  anchorBottomRight = false,
+): void {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -14,14 +31,27 @@ export function useFitWindowHeight(ref: RefObject<HTMLElement | null>, width: nu
     let frame = 0;
     const fit = () => {
       window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(async () => {
         const height = Math.ceil(el.getBoundingClientRect().height);
-        if (height > 0) {
-          getCurrentWindow()
-            .setSize(new LogicalSize(width, height))
-            .catch(() => {
-              /* window-size permission missing or window closed — ignore */
-            });
+        if (height <= 0) return;
+        const win = getCurrentWindow();
+        try {
+          await win.setSize(new LogicalSize(width, height));
+          if (anchorBottomRight) {
+            const monitor = await currentMonitor();
+            if (monitor) {
+              const scale = monitor.scaleFactor;
+              const monW = monitor.size.width / scale;
+              const monH = monitor.size.height / scale;
+              const monX = monitor.position.x / scale;
+              const monY = monitor.position.y / scale;
+              const x = Math.round(monX + monW - width - MARGIN);
+              const y = Math.round(monY + monH - height - TITLEBAR - TASKBAR - MARGIN);
+              await win.setPosition(new LogicalPosition(x, y));
+            }
+          }
+        } catch {
+          /* window-size/position permission missing or window closed — ignore */
         }
       });
     };
@@ -33,5 +63,5 @@ export function useFitWindowHeight(ref: RefObject<HTMLElement | null>, width: nu
       observer.disconnect();
       window.cancelAnimationFrame(frame);
     };
-  }, [ref, width]);
+  }, [ref, width, anchorBottomRight]);
 }

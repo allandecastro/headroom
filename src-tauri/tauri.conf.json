@@ -16,14 +16,14 @@
         "label": "popover",
         "title": "Headroom",
         "width": 360,
-        "height": 480,
-        "resizable": false,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": false,
+        "height": 420,
+        "minWidth": 300,
+        "minHeight": 180,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
         "skipTaskbar": true,
-        "visible": false,
-        "shadow": true
+        "visible": false
       },
       {
         "label": "onboarding",
@@ -36,7 +36,7 @@
         "decorations": true,
         "transparent": false,
         "center": true,
-        "skipTaskbar": false,
+        "skipTaskbar": true,
         "visible": false
       },
       {
@@ -50,16 +50,12 @@
         "decorations": true,
         "transparent": false,
         "center": true,
-        "skipTaskbar": false,
+        "skipTaskbar": true,
         "visible": false
       }
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://claude.ai https://api.github.com https://github.com ipc: http://ipc.localhost"
-    },
-    "trayIcon": {
-      "iconPath": "icons/tray-ok.png",
-      "iconAsTemplate": false
     }
   },
   "bundle": {

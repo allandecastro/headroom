@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { setClaudeSession } from '../../lib/ipc';
+import { TextField } from '../ui/TextField';
 import { SaveRow } from './SaveRow';
 import type { SaveStatus } from './SaveRow';
-
-const inputClass =
-  'w-full bg-secondary border-hairline border-emphasis rounded-[6px] px-2.5 py-2 text-[12px] text-fg-primary placeholder:text-fg-quaternary font-mono outline-none focus:border-emphasis';
 
 export function ClaudePasteForm() {
   const [value, setValue] = useState('');
@@ -29,24 +27,23 @@ export function ClaudePasteForm() {
 
   return (
     <div>
-      <label htmlFor="claude-session" className="block mb-1.5 text-[11px] text-fg-secondary">
-        Session key
-      </label>
-      <textarea
-        id="claude-session"
-        rows={3}
-        spellCheck={false}
+      <TextField
+        label="Session key"
+        multiline
+        mono
         value={value}
-        onChange={(e) => {
-          setValue(e.target.value);
+        onChange={(v) => {
+          setValue(v);
           setStatus('idle');
         }}
         placeholder="sessionKey value from your claude.ai cookies"
-        className={`${inputClass} resize-none`}
+        hint={
+          <>
+            DevTools → Application → Cookies → claude.ai →{' '}
+            <span className="font-mono">sessionKey</span>
+          </>
+        }
       />
-      <p className="mt-1.5 text-2xs text-fg-tertiary">
-        DevTools → Application → Cookies → claude.ai → <span className="font-mono">sessionKey</span>
-      </p>
       <SaveRow status={status} error={error} disabled={!valid} onSave={save} />
     </div>
   );

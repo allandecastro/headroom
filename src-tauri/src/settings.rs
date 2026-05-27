@@ -16,8 +16,13 @@ pub struct Settings {
     /// "auto" | "light" | "dark".
     pub theme: String,
     pub show_tray_percentage: bool,
-    pub notify_80: bool,
-    pub notify_95: bool,
+    /// Percentage at which the orange "heads up" alert fires (0 = off).
+    pub notify_warn_pct: u8,
+    /// Percentage at which the red "critical" alert fires (0 = off).
+    pub notify_crit_pct: u8,
+    /// Surface the optional "Claude Design" usage window in the popover.
+    #[serde(default)]
+    pub show_claude_design: bool,
 }
 
 impl Default for Settings {
@@ -26,8 +31,9 @@ impl Default for Settings {
             poll_interval_secs: 30,
             theme: "auto".to_string(),
             show_tray_percentage: true,
-            notify_80: true,
-            notify_95: true,
+            notify_warn_pct: 80,
+            notify_crit_pct: 95,
+            show_claude_design: false,
         }
     }
 }
@@ -71,6 +77,13 @@ impl Settings {
         }
         if !matches!(self.theme.as_str(), "auto" | "light" | "dark") {
             self.theme = "auto".to_string();
+        }
+        // Thresholds are percentages; 0 means the alert is off.
+        if self.notify_warn_pct > 100 {
+            self.notify_warn_pct = 80;
+        }
+        if self.notify_crit_pct > 100 {
+            self.notify_crit_pct = 95;
         }
         self
     }
@@ -120,8 +133,9 @@ mod tests {
             poll_interval_secs: 60,
             theme: "light".to_string(),
             show_tray_percentage: false,
-            notify_80: false,
-            notify_95: true,
+            notify_warn_pct: 75,
+            notify_crit_pct: 90,
+            show_claude_design: true,
         };
         let json = serde_json::to_string(&s).unwrap();
         assert_eq!(serde_json::from_str::<Settings>(&json).unwrap(), s);

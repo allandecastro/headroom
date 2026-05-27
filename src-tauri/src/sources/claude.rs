@@ -168,6 +168,8 @@ struct UsageResponse {
     seven_day: Option<WindowEntry>,
     seven_day_sonnet: Option<WindowEntry>,
     seven_day_opus: Option<WindowEntry>,
+    /// "Claude Design" on the usage page (opt-in via settings).
+    seven_day_omelette: Option<WindowEntry>,
 }
 
 #[derive(Deserialize)]
@@ -184,7 +186,12 @@ impl UsageResponse {
         // (window kind, label, entry, is_opus) — utilization is already a
         // percentage, so used = utilization out of 100.
         let windows = [
-            (QuotaWindow::FiveHour, "5h", self.five_hour, false),
+            (
+                QuotaWindow::FiveHour,
+                "Current session",
+                self.five_hour,
+                false,
+            ),
             (QuotaWindow::WeeklyAll, "Weekly · 7d", self.seven_day, false),
             (
                 QuotaWindow::WeeklySonnet,
@@ -197,6 +204,12 @@ impl UsageResponse {
                 "Opus · 7d",
                 self.seven_day_opus,
                 true,
+            ),
+            (
+                QuotaWindow::ClaudeDesign,
+                "Claude Design",
+                self.seven_day_omelette,
+                false,
             ),
         ];
 

@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { setCopilotPlan, setCopilotToken, setCopilotUsername } from '../../lib/ipc';
 import type { CopilotPlan } from '../../lib/ipc';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { TextField } from '../ui/TextField';
 import { SaveRow } from './SaveRow';
 import type { SaveStatus } from './SaveRow';
-
-const inputClass =
-  'w-full bg-secondary border-hairline border-emphasis rounded-[6px] px-2.5 py-2 text-[12px] text-fg-primary placeholder:text-fg-quaternary outline-none focus:border-emphasis';
 
 const PLAN_OPTIONS: { value: CopilotPlan; label: string }[] = [
   { value: 'free', label: 'Free' },
@@ -45,48 +43,33 @@ export function CopilotPasteForm() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <label htmlFor="copilot-token" className="block mb-1.5 text-[11px] text-fg-secondary">
-          Personal access token
-        </label>
-        <input
-          id="copilot-token"
-          type="password"
-          spellCheck={false}
-          value={token}
-          onChange={(e) => {
-            setToken(e.target.value);
-            setStatus('idle');
-          }}
-          placeholder="github_pat_… or ghp_…"
-          className={`${inputClass} font-mono`}
-        />
-        <p className="mt-1.5 text-2xs text-fg-tertiary">
-          Fine-grained token with Account → Plan → Read-only.
-        </p>
-      </div>
+      <TextField
+        label="Personal access token"
+        password
+        mono
+        value={token}
+        onChange={(v) => {
+          setToken(v);
+          setStatus('idle');
+        }}
+        placeholder="github_pat_… or ghp_…"
+        hint="Fine-grained token with Account → Plan → Read-only."
+      />
 
-      <div>
-        <label htmlFor="copilot-username" className="block mb-1.5 text-[11px] text-fg-secondary">
-          GitHub username
-        </label>
-        <input
-          id="copilot-username"
-          spellCheck={false}
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            setStatus('idle');
-          }}
-          placeholder="octocat"
-          className={inputClass}
-        />
-        {username.trim().length > 0 && !usernameOk && (
-          <p className="mt-1.5 text-2xs text-state-crit-text dark:text-state-crit-text-dark">
-            Letters, numbers, and single hyphens only.
-          </p>
-        )}
-      </div>
+      <TextField
+        label="GitHub username"
+        value={username}
+        onChange={(v) => {
+          setUsername(v);
+          setStatus('idle');
+        }}
+        placeholder="octocat"
+        error={
+          username.trim().length > 0 && !usernameOk
+            ? 'Letters, numbers, and single hyphens only.'
+            : undefined
+        }
+      />
 
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-fg-secondary">Plan</span>
