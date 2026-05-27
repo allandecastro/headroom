@@ -8,7 +8,7 @@
 
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
@@ -37,11 +37,12 @@ impl TrayState {
 }
 
 pub fn install(app: &mut tauri::App) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show Headroom", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Open Headroom", true, None::<&str>)?;
     let onboarding = MenuItem::with_id(app, "onboarding", "Set up accounts…", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &onboarding, &settings, &quit])?;
+    let sep = PredefinedMenuItem::separator(app)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit Headroom", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &onboarding, &settings, &sep, &quit])?;
 
     TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(TrayState::Ok.icon_bytes())?)

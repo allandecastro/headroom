@@ -52,12 +52,18 @@ function QuotaRow({ quota }: { quota: Quota }) {
       <div className="flex items-baseline justify-between text-[11px]">
         <span className="text-fg-secondary">{quota.label}</span>
         <span className="font-mono text-xxs tabular-nums">
-          <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>
-            {formatNumber(quota.used, quota.unit)}
-          </span>
-          <span className="text-fg-quaternary">/{formatNumber(quota.total, quota.unit)}</span>
-          {' · '}
-          <span className={state !== 'ok' ? stateClasses.text : ''}>{pct}%</span>
+          {quota.unit === 'percent' ? (
+            <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>{pct}%</span>
+          ) : (
+            <>
+              <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>
+                {formatNumber(quota.used, quota.unit)}
+              </span>
+              <span className="text-fg-quaternary">/{formatNumber(quota.total, quota.unit)}</span>
+              {' · '}
+              <span className={state !== 'ok' ? stateClasses.text : ''}>{pct}%</span>
+            </>
+          )}
         </span>
       </div>
       <div className="h-0.5 my-1 bg-black/10 dark:bg-white/10 overflow-hidden">

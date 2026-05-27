@@ -25,6 +25,7 @@ pub enum ServiceState {
 #[serde(rename_all = "snake_case")]
 pub enum QuotaWindow {
     FiveHour,
+    WeeklyAll,
     WeeklySonnet,
     WeeklyOpus,
     Monthly,
@@ -37,6 +38,8 @@ pub enum QuotaUnit {
     Hours,
     Requests,
     UsdCredits,
+    /// A 0–100 utilization percentage (used == percent, total == 100).
+    Percent,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -2,9 +2,10 @@
 // Window label: 'settings'. Tauri window: 460 × 560, no decorations, transparent.
 
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useFitWindowHeight } from './lib/useFitWindow';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { Toggle } from './components/ui/Toggle';
 import { Button } from './components/ui/Button';
@@ -148,6 +149,8 @@ function Row({ children }: { children: ReactNode }) {
 export default function SettingsPanel() {
   const [settings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useFitWindowHeight(bodyRef, 480);
 
   // Load settings from backend on mount
   useEffect(() => {
@@ -185,8 +188,8 @@ export default function SettingsPanel() {
   const copilotSvc = snapshot?.services.find((s) => s.id === 'copilot');
 
   return (
-    <div className="h-full flex flex-col bg-window-opaque text-fg-primary">
-      <div className="flex-1 overflow-y-auto px-[22px] pt-[18px] pb-4">
+    <div className="min-h-screen bg-window-opaque text-fg-primary">
+      <div ref={bodyRef} className="px-[22px] pt-[18px] pb-4">
         {/* POLLING */}
         <Group label="Polling">
           <Row>
@@ -232,7 +235,7 @@ export default function SettingsPanel() {
             <ServiceRow
               icon={<ClaudeIcon />}
               svc={claudeSvc}
-              staticName="Claude Code"
+              staticName="Claude"
               credentialKey="claude"
               onSignOut={refreshSnapshot}
             />

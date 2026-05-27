@@ -27,8 +27,16 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"
 
-# Credentials
-keyring = "3"
+# Credentials. keyring 3 ships NO credential store by default — without a
+# platform backend it silently uses an in-memory mock that never persists, so
+# the native store features are required, not optional. Each only compiles on
+# its own platform.
+keyring = { version = "3", features = [
+    "apple-native",
+    "windows-native",
+    "sync-secret-service",
+    "crypto-rust",
+] }
 
 # Time
 chrono = { version = "0.4", features = ["serde"] }
