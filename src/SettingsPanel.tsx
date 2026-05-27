@@ -202,6 +202,24 @@ export default function SettingsPanel() {
     setSettings(next).catch(console.error);
   }
 
+  // Notification thresholds: keep critical strictly above heads-up (when both
+  // are enabled). Moving one nudges the other rather than allowing crit <= warn.
+  function updateThreshold(patch: Partial<Settings>) {
+    const next = { ...settings, ...patch };
+    const warn = next.notify_warn_pct;
+    const crit = next.notify_crit_pct;
+    if (warn > 0 && crit > 0 && crit <= warn) {
+      if ('notify_warn_pct' in patch) {
+        next.notify_crit_pct = Math.min(100, warn + 5);
+        if (next.notify_crit_pct <= warn) next.notify_warn_pct = next.notify_crit_pct - 5;
+      } else {
+        next.notify_warn_pct = Math.max(0, crit - 5);
+      }
+    }
+    setLocalSettings(next);
+    setSettings(next).catch(console.error);
+  }
+
   // Re-fetch snapshot after sign-out
   function refreshSnapshot() {
     invoke<Snapshot>('refresh_all').then(setSnapshot).catch(console.error);
@@ -302,7 +320,7 @@ export default function SettingsPanel() {
             </div>
             <Slider
               value={settings.notify_warn_pct}
-              onChange={(v) => update({ notify_warn_pct: v })}
+              onChange={(v) => updateThreshold({ notify_warn_pct: v })}
               accent="#d99c52"
               ariaLabel="Heads-up threshold"
             />
@@ -316,7 +334,7 @@ export default function SettingsPanel() {
             </div>
             <Slider
               value={settings.notify_crit_pct}
-              onChange={(v) => update({ notify_crit_pct: v })}
+              onChange={(v) => updateThreshold({ notify_crit_pct: v })}
               accent="#d4625d"
               ariaLabel="Critical threshold"
             />
@@ -332,7 +350,12 @@ export default function SettingsPanel() {
                 Know your headroom — quota meter for Claude & GitHub Copilot
               </span>
             </div>
-            <span className="text-[10.5px] text-fg-quaternary">Check for updates</span>
+            <button
+              onClick={() => openUrl(`${GITHUB_URL}/releases`)}
+              className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary"
+            >
+              Check for updates
+            </button>
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>

@@ -37,16 +37,24 @@ export function useFitWindowHeight(
         const win = getCurrentWindow();
         try {
           await win.setSize(new LogicalSize(width, height));
-          if (anchorBottomRight) {
-            const monitor = await currentMonitor();
-            if (monitor) {
-              const scale = monitor.scaleFactor;
-              const monW = monitor.size.width / scale;
-              const monH = monitor.size.height / scale;
-              const monX = monitor.position.x / scale;
-              const monY = monitor.position.y / scale;
+          const monitor = await currentMonitor();
+          if (monitor) {
+            const scale = monitor.scaleFactor;
+            const monW = monitor.size.width / scale;
+            const monH = monitor.size.height / scale;
+            const monX = monitor.position.x / scale;
+            const monY = monitor.position.y / scale;
+            if (anchorBottomRight) {
+              // Popover: pin to the bottom-right corner near the tray.
               const x = Math.round(monX + monW - width - MARGIN);
               const y = Math.round(monY + monH - height - TITLEBAR - TASKBAR - MARGIN);
+              await win.setPosition(new LogicalPosition(x, y));
+            } else {
+              // Settings/onboarding: center within the usable area so the
+              // bottom never slips behind the taskbar.
+              const usableH = monH - TASKBAR - TITLEBAR;
+              const x = Math.round(monX + (monW - width) / 2);
+              const y = Math.round(monY + Math.max(MARGIN, (usableH - height) / 2));
               await win.setPosition(new LogicalPosition(x, y));
             }
           }

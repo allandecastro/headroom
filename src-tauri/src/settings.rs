@@ -85,6 +85,14 @@ impl Settings {
         if self.notify_crit_pct > 100 {
             self.notify_crit_pct = 95;
         }
+        // Critical must sit strictly above heads-up when both are enabled —
+        // otherwise the red alert could fire at or below the orange one.
+        if self.notify_warn_pct > 0
+            && self.notify_crit_pct > 0
+            && self.notify_crit_pct <= self.notify_warn_pct
+        {
+            self.notify_warn_pct = self.notify_crit_pct.saturating_sub(5);
+        }
         self
     }
 }
@@ -125,6 +133,37 @@ mod tests {
             assert_eq!(s.poll_interval_secs, secs);
             assert_eq!(s.theme, "dark");
         }
+    }
+
+    #[test]
+    fn sanitized_keeps_critical_above_heads_up() {
+        // crit <= warn (both enabled) → warn is pulled below crit.
+        let s = Settings {
+            notify_warn_pct: 90,
+            notify_crit_pct: 85,
+            ..Settings::default()
+        }
+        .sanitized();
+        assert!(s.notify_crit_pct > s.notify_warn_pct, "{s:?}");
+
+        // Equal values are also corrected.
+        let s = Settings {
+            notify_warn_pct: 80,
+            notify_crit_pct: 80,
+            ..Settings::default()
+        }
+        .sanitized();
+        assert!(s.notify_crit_pct > s.notify_warn_pct, "{s:?}");
+
+        // A disabled (0) threshold imposes no ordering constraint.
+        let s = Settings {
+            notify_warn_pct: 0,
+            notify_crit_pct: 50,
+            ..Settings::default()
+        }
+        .sanitized();
+        assert_eq!(s.notify_warn_pct, 0);
+        assert_eq!(s.notify_crit_pct, 50);
     }
 
     #[test]
