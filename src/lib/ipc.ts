@@ -57,3 +57,11 @@ export function setSettings(settings: Settings): Promise<void> {
 export function openOnboarding(): Promise<void> {
   return invoke('open_onboarding');
 }
+
+/**
+ * Open the embedded Claude login window. After the user signs in, the backend
+ * captures the `sessionKey` cookie, stores it, and emits `claude-signed-in`.
+ */
+export function startClaudeSignin(): Promise<void> {
+  return invoke('start_claude_signin');
+}

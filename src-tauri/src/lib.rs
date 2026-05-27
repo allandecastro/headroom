@@ -139,6 +139,84 @@ fn open_onboarding(app: AppHandle) {
     }
 }
 
+/// Open an embedded Claude login window. The webview is a real browser engine,
+/// so it clears the Cloudflare challenge our HTTP client cannot. After the user
+/// signs in, poll the webview cookie store for the `sessionKey`, store it, close
+/// the window, and emit `claude-signed-in` + a fresh snapshot.
+#[tauri::command]
+async fn start_claude_signin(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+    if let Some(existing) = app.get_webview_window("claude-login") {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    // Present a mainstream desktop-Chrome UA so identity providers (notably
+    // Google SSO) don't reject the embedded webview as an "insecure browser".
+    const LOGIN_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+         (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+    let url = "https://claude.ai/login"
+        .parse()
+        .map_err(|e| format!("bad login URL: {e}"))?;
+    WebviewWindowBuilder::new(&app, "claude-login", WebviewUrl::External(url))
+        .title("Sign in to Claude")
+        .inner_size(520.0, 720.0)
+        .center()
+        .user_agent(LOGIN_UA)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // cookies() deadlocks on Windows if called from a sync command or the main
+    // thread, so poll it from a background task.
+    let state = state.inner().clone();
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for _ in 0..200 {
+            tokio::time::sleep(Duration::from_millis(1500)).await;
+            let Some(window) = app_handle.get_webview_window("claude-login") else {
+                break; // user closed the login window
+            };
+            let cookies = match window.cookies() {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!(?e, "failed to read claude cookies");
+                    continue;
+                }
+            };
+            if let Some(cookie) = cookies
+                .iter()
+                .find(|c| c.name() == "sessionKey" && !c.value().is_empty())
+            {
+                if let Err(e) = state.credentials.set("claude.session", cookie.value()) {
+                    error!(?e, "failed to store claude session key");
+                }
+                let _ = app_handle.emit("claude-signed-in", ());
+                let _ = window.close();
+                let snapshot = poll_once(state.clone()).await;
+                let _ = app_handle.emit("tokens-updated", &snapshot);
+                break;
+            } else if !cookies.is_empty() {
+                // TEMP diagnostic: names only, never values.
+                let names: Vec<&str> = cookies.iter().map(|c| c.name()).collect();
+                info!(
+                    count = cookies.len(),
+                    ?names,
+                    "claude-login cookies (no sessionKey)"
+                );
+            } else {
+                info!("claude-login: cookie store empty");
+            }
+        }
+    });
+
+    Ok(())
+}
+
 async fn poll_once(state: Arc<AppState>) -> Snapshot {
     let mut services = Vec::with_capacity(state.sources.len());
 
@@ -268,7 +346,8 @@ pub fn run() {
             clear_credentials,
             get_settings,
             set_settings,
-            open_onboarding
+            open_onboarding,
+            start_claude_signin
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

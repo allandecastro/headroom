@@ -38,6 +38,11 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
 
+      // TypeScript already flags undefined identifiers, and no-undef gives false
+      // positives on DOM globals (ResizeObserver, HTMLElement, requestAnimationFrame…).
+      // typescript-eslint recommends turning it off.
+      'no-undef': 'off',
+
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],

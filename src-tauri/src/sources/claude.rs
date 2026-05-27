@@ -138,7 +138,7 @@ impl QuotaSource for ClaudeSource {
     }
 
     fn name(&self) -> &'static str {
-        "Claude Code"
+        "Claude"
     }
 
     async fn fetch(&self, creds: &Credentials) -> Result<ServiceStatus, SourceError> {
@@ -157,82 +157,73 @@ struct OrgEntry {
     uuid: String,
 }
 
-/// Tentative shape — the real one will be confirmed by inspecting an
-/// authenticated response during implementation. Fields and nesting may
-/// need adjustment.
+/// Shape of `GET /api/organizations/{org}/usage` (confirmed against a live
+/// response). Each window reports a `utilization` percentage (0–100) and an
+/// optional reset time. The endpoint exposes many windows; we surface the
+/// rolling 5-hour, the overall 7-day cap, and the 7-day Opus cap (Max plans).
+/// It does NOT include the plan name.
 #[derive(Deserialize)]
 struct UsageResponse {
-    #[serde(rename = "fiveHour")]
     five_hour: Option<WindowEntry>,
-    weekly: Option<WindowEntry>,
-    #[serde(rename = "weeklyOpus")]
-    weekly_opus: Option<WindowEntry>,
-    plan: Option<String>,
+    seven_day: Option<WindowEntry>,
+    seven_day_sonnet: Option<WindowEntry>,
+    seven_day_opus: Option<WindowEntry>,
 }
 
 #[derive(Deserialize)]
 struct WindowEntry {
-    #[serde(rename = "percentUsed")]
-    percent_used: f64,
-    #[serde(rename = "resetsAt")]
-    resets_at: chrono::DateTime<chrono::Utc>,
-    #[serde(default, rename = "totalHours")]
-    total_hours: Option<f64>,
+    utilization: Option<f64>,
+    #[serde(default)]
+    resets_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl UsageResponse {
     fn into_status(self) -> ServiceStatus {
         let mut quotas = Vec::new();
 
-        if let Some(w) = self.five_hour {
-            quotas.push(Quota {
-                window: QuotaWindow::FiveHour,
-                label: "5h".into(),
-                used: w.percent_used,
-                total: 100.0,
-                unit: QuotaUnit::Messages,
-                resets_at: w.resets_at,
-                advice: None,
-            });
-        }
+        // (window kind, label, entry, is_opus) — utilization is already a
+        // percentage, so used = utilization out of 100.
+        let windows = [
+            (QuotaWindow::FiveHour, "5h", self.five_hour, false),
+            (QuotaWindow::WeeklyAll, "Weekly · 7d", self.seven_day, false),
+            (
+                QuotaWindow::WeeklySonnet,
+                "Sonnet · 7d",
+                self.seven_day_sonnet,
+                false,
+            ),
+            (
+                QuotaWindow::WeeklyOpus,
+                "Opus · 7d",
+                self.seven_day_opus,
+                true,
+            ),
+        ];
 
-        if let Some(w) = self.weekly {
-            let total = w.total_hours.unwrap_or(100.0);
-            let used = (w.percent_used / 100.0) * total;
-            quotas.push(Quota {
-                window: QuotaWindow::WeeklySonnet,
-                label: "Sonnet · 7d".into(),
-                used,
-                total,
-                unit: QuotaUnit::Hours,
-                resets_at: w.resets_at,
-                advice: None,
-            });
-        }
-
-        if let Some(w) = self.weekly_opus {
-            let total = w.total_hours.unwrap_or(100.0);
-            let used = (w.percent_used / 100.0) * total;
-            let advice = if w.percent_used >= 95.0 {
+        for (window, label, entry, is_opus) in windows {
+            let Some(w) = entry else { continue };
+            let Some(util) = w.utilization else { continue };
+            let advice = if is_opus && util >= 95.0 {
                 Some("use Sonnet for the rest of the week".to_string())
             } else {
                 None
             };
             quotas.push(Quota {
-                window: QuotaWindow::WeeklyOpus,
-                label: "Opus · 7d".into(),
-                used,
-                total,
-                unit: QuotaUnit::Hours,
-                resets_at: w.resets_at,
+                window,
+                label: label.into(),
+                used: util,
+                total: 100.0,
+                unit: QuotaUnit::Percent,
+                resets_at: w.resets_at.unwrap_or_else(chrono::Utc::now),
                 advice,
             });
         }
 
         ServiceStatus {
             id: "claude".into(),
-            name: "Claude Code".into(),
-            plan: self.plan.unwrap_or_else(|| "—".into()),
+            name: "Claude".into(),
+            // The usage endpoint doesn't carry the plan name; left blank for now.
+            plan: String::new(),
             state: ServiceState::Active,
             quotas,
             error_detail: None,
@@ -251,21 +242,10 @@ mod tests {
     /// Minimal usage JSON body with one quota window per type.
     fn usage_body() -> serde_json::Value {
         serde_json::json!({
-            "plan": "pro",
-            "fiveHour": {
-                "percentUsed": 40.0,
-                "resetsAt": "2099-01-01T00:00:00Z"
-            },
-            "weekly": {
-                "percentUsed": 60.0,
-                "totalHours": 100.0,
-                "resetsAt": "2099-01-07T00:00:00Z"
-            },
-            "weeklyOpus": {
-                "percentUsed": 20.0,
-                "totalHours": 50.0,
-                "resetsAt": "2099-01-07T00:00:00Z"
-            }
+            "five_hour": { "utilization": 40.0, "resets_at": "2099-01-01T00:00:00Z" },
+            "seven_day": { "utilization": 60.0, "resets_at": "2099-01-07T00:00:00Z" },
+            "seven_day_sonnet": { "utilization": 5.0, "resets_at": "2099-01-07T00:00:00Z" },
+            "seven_day_opus": { "utilization": 20.0, "resets_at": "2099-01-07T00:00:00Z" }
         })
     }
 
@@ -288,9 +268,10 @@ mod tests {
             matches!(status.state, ServiceState::Active),
             "expected Active state"
         );
-        assert_eq!(status.plan, "pro");
-        // All three quota windows present
-        assert_eq!(status.quotas.len(), 3);
+        // The /usage endpoint carries no plan name.
+        assert_eq!(status.plan, "");
+        // five_hour + seven_day + seven_day_sonnet + seven_day_opus are surfaced.
+        assert_eq!(status.quotas.len(), 4);
     }
 
     #[tokio::test]
@@ -389,12 +370,7 @@ mod tests {
         let server = MockServer::start().await;
 
         let body = serde_json::json!({
-            "plan": "pro",
-            "weeklyOpus": {
-                "percentUsed": 96.0,
-                "totalHours": 50.0,
-                "resetsAt": "2099-01-07T00:00:00Z"
-            }
+            "seven_day_opus": { "utilization": 96.0, "resets_at": "2099-01-07T00:00:00Z" }
         });
 
         Mock::given(method("GET"))

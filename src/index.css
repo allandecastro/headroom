@@ -4,7 +4,9 @@
 
 /* Color tokens — see DESIGN_SYSTEM.md */
 :root {
-  --bg-window: rgba(248, 247, 244, 0.92);
+  /* Opaque until OS vibrancy (macOS) / Mica (Windows 11) is wired up — a
+     translucent window with nothing behind it just looks like a ghost. */
+  --bg-window: #f8f7f4;
   --bg-window-opaque: #f8f7f4;
   --bg-secondary: rgba(0, 0, 0, 0.04);
   --border-default: rgba(0, 0, 0, 0.08);
@@ -19,7 +21,7 @@
    setting (auto resolves the OS preference). This keeps the CSS variables and
    Tailwind's `dark:` variants (darkMode: 'class') on the same trigger. */
 .dark {
-  --bg-window: rgba(22, 24, 30, 0.92);
+  --bg-window: #16181e;
   --bg-window-opaque: #16181e;
   --bg-secondary: rgba(255, 255, 255, 0.05);
   --border-default: rgba(255, 255, 255, 0.08);

@@ -2,9 +2,9 @@
 
 export type ServiceState = 'active' | 'auth_required' | 'unreachable';
 
-export type QuotaWindow = 'five_hour' | 'weekly_sonnet' | 'weekly_opus' | 'monthly';
+export type QuotaWindow = 'five_hour' | 'weekly_all' | 'weekly_sonnet' | 'weekly_opus' | 'monthly';
 
-export type QuotaUnit = 'messages' | 'hours' | 'requests' | 'usd_credits';
+export type QuotaUnit = 'messages' | 'hours' | 'requests' | 'usd_credits' | 'percent';
 
 export interface Quota {
   window: QuotaWindow;
