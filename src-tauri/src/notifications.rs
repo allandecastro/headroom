@@ -126,6 +126,7 @@ mod tests {
             unit: QuotaUnit::Percent,
             resets_at: chrono::Utc::now(),
             advice: None,
+            projection: None,
         }
     }
 
