@@ -17,6 +17,9 @@ use crate::credentials::Credentials;
 #[serde(rename_all = "snake_case")]
 pub enum ServiceState {
     Active,
+    /// Credentials were never entered — prompt the user to connect, don't alarm
+    /// them with an error.
+    NeedsSetup,
     AuthRequired,
     Unreachable,
 }
@@ -28,6 +31,7 @@ pub enum QuotaWindow {
     WeeklyAll,
     WeeklySonnet,
     WeeklyOpus,
+    ClaudeDesign,
     Monthly,
 }
 
@@ -74,6 +78,17 @@ impl ServiceStatus {
             state: ServiceState::Unreachable,
             quotas: vec![],
             error_detail: Some(detail),
+        }
+    }
+
+    pub fn not_configured(id: &str, name: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            name: name.to_string(),
+            plan: String::new(),
+            state: ServiceState::NeedsSetup,
+            quotas: vec![],
+            error_detail: None,
         }
     }
 

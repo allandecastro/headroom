@@ -1,16 +1,24 @@
-// Settings window. Matches docs/mockups/03-settings.html exactly.
-// Window label: 'settings'. Tauri window: 460 × 560, no decorations, transparent.
+// Settings window. Based on docs/mockups/03-settings.html.
 
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-shell';
 import { useFitWindowHeight } from './lib/useFitWindow';
 import { SegmentedControl } from './components/ui/SegmentedControl';
 import { Toggle } from './components/ui/Toggle';
+import { Slider } from './components/ui/Slider';
 import { Button } from './components/ui/Button';
-import { ClaudeIcon, GitHubIcon } from './components/onboarding/icons';
-import { getSettings, setSettings, openOnboarding, clearCredentials } from './lib/ipc';
+import { ClaudeIcon, GitHubIcon, LinkedInIcon } from './components/onboarding/icons';
+import {
+  getSettings,
+  setSettings,
+  openOnboarding,
+  clearCredentials,
+  getAutostart,
+  setAutostart,
+} from './lib/ipc';
 import type { Settings } from './lib/ipc';
 import type { Snapshot, ServiceStatus } from './lib/api';
 
@@ -41,9 +49,18 @@ const DEFAULT_SETTINGS: Settings = {
   poll_interval_secs: 30,
   theme: 'auto',
   show_tray_percentage: true,
-  notify_80: true,
-  notify_95: true,
+  notify_warn_pct: 80,
+  notify_crit_pct: 95,
+  show_claude_design: false,
 };
+
+// Open an external URL in the default browser.
+function openUrl(url: string): void {
+  open(url).catch(console.error);
+}
+
+const GITHUB_URL = 'https://github.com/allandecastro/headroom';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/allandecastro/';
 
 // ─── Connected pill ──────────────────────────────────────────────────────────
 
@@ -81,7 +98,7 @@ interface ServiceRowProps {
 
 function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: ServiceRowProps) {
   const connected = svc?.state === 'active';
-  const displayName = svc ? `${svc.name} · ${svc.plan}` : staticName;
+  const displayName = svc ? (svc.plan ? `${svc.name} · ${svc.plan}` : svc.name) : staticName;
 
   const detailText = connected ? (svc?.error_detail ?? '') : 'Not connected';
 
@@ -125,7 +142,7 @@ function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: Service
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="py-3 [&+&]:border-t [&+&]:border-hairline [&+&]:border-default">
+    <div className="py-3">
       <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-fg-tertiary mb-3">
         {label}
       </div>
@@ -149,13 +166,21 @@ function Row({ children }: { children: ReactNode }) {
 export default function SettingsPanel() {
   const [settings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [autostart, setAutostartState] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 480);
 
-  // Load settings from backend on mount
+  // Load settings + autostart state from backend on mount
   useEffect(() => {
     getSettings().then(setLocalSettings).catch(console.error);
+    getAutostart().then(setAutostartState).catch(console.error);
   }, []);
+
+  // Autostart is OS-level (not in settings.json), so toggle it directly.
+  function toggleAutostart(enabled: boolean) {
+    setAutostartState(enabled);
+    setAutostart(enabled).catch(console.error);
+  }
 
   // Subscribe to snapshot updates and fetch initial snapshot
   useEffect(() => {
@@ -227,11 +252,28 @@ export default function SettingsPanel() {
               ariaLabel="Show percentage in tray"
             />
           </Row>
+          <Row>
+            <span className="flex-1 text-[12px] text-fg-secondary">Launch at startup</span>
+            <Toggle checked={autostart} onChange={toggleAutostart} ariaLabel="Launch at startup" />
+          </Row>
+          <Row>
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Show Claude Design usage</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Extra Claude usage meter in the popover
+              </span>
+            </div>
+            <Toggle
+              checked={settings.show_claude_design}
+              onChange={(v) => update({ show_claude_design: v })}
+              ariaLabel="Show Claude Design usage"
+            />
+          </Row>
         </Group>
 
         {/* SERVICES */}
         <Group label="Services">
-          <div className="[&>div+div]:border-t [&>div+div]:border-hairline [&>div+div]:border-default">
+          <div>
             <ServiceRow
               icon={<ClaudeIcon />}
               svc={claudeSvc}
@@ -252,29 +294,31 @@ export default function SettingsPanel() {
         {/* NOTIFICATIONS */}
         <Group label="Notifications">
           <Row>
-            <div className="flex flex-col flex-1">
-              <span className="text-[12px] text-fg-secondary">Notify at 80%</span>
-              <span className="text-[10.5px] text-fg-quaternary mt-0.5">
-                Desktop alert when any quota reaches 80%
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Heads-up alert 🟠</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Orange notification at this usage
               </span>
             </div>
-            <Toggle
-              checked={settings.notify_80}
-              onChange={(v) => update({ notify_80: v })}
-              ariaLabel="Notify at 80%"
+            <Slider
+              value={settings.notify_warn_pct}
+              onChange={(v) => update({ notify_warn_pct: v })}
+              accent="#d99c52"
+              ariaLabel="Heads-up threshold"
             />
           </Row>
           <Row>
-            <div className="flex flex-col flex-1">
-              <span className="text-[12px] text-fg-secondary">Notify at 95%</span>
-              <span className="text-[10.5px] text-fg-quaternary mt-0.5">
-                Desktop alert when any quota reaches 95%
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Critical alert 🔴</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Red notification at this usage
               </span>
             </div>
-            <Toggle
-              checked={settings.notify_95}
-              onChange={(v) => update({ notify_95: v })}
-              ariaLabel="Notify at 95%"
+            <Slider
+              value={settings.notify_crit_pct}
+              onChange={(v) => update({ notify_crit_pct: v })}
+              accent="#d4625d"
+              ariaLabel="Critical threshold"
             />
           </Row>
         </Group>
@@ -282,8 +326,27 @@ export default function SettingsPanel() {
         {/* ABOUT */}
         <Group label="About">
           <Row>
-            <span className="text-[12px] text-fg-secondary flex-1">Headroom v0.1.0</span>
+            <span className="flex-1 text-[12px] text-fg-secondary">Headroom v0.1.0</span>
             <span className="text-[10.5px] text-fg-quaternary">Check for updates</span>
+          </Row>
+          <Row>
+            <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>
+            <div className="flex items-center gap-3 text-fg-tertiary">
+              <button
+                aria-label="GitHub repository"
+                onClick={() => openUrl(GITHUB_URL)}
+                className="hover:text-fg-primary"
+              >
+                <GitHubIcon />
+              </button>
+              <button
+                aria-label="LinkedIn — Allan De Castro"
+                onClick={() => openUrl(LINKEDIN_URL)}
+                className="hover:text-fg-primary"
+              >
+                <LinkedInIcon />
+              </button>
+            </div>
           </Row>
         </Group>
       </div>

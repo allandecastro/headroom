@@ -39,8 +39,9 @@ export interface Settings {
   poll_interval_secs: number; // 15 | 30 | 60 | 300
   theme: 'auto' | 'light' | 'dark';
   show_tray_percentage: boolean;
-  notify_80: boolean;
-  notify_95: boolean;
+  notify_warn_pct: number; // orange alert threshold (0 = off)
+  notify_crit_pct: number; // red alert threshold (0 = off)
+  show_claude_design: boolean;
 }
 
 /** Load persisted settings from the backend. */
@@ -64,4 +65,19 @@ export function openOnboarding(): Promise<void> {
  */
 export function startClaudeSignin(): Promise<void> {
   return invoke('start_claude_signin');
+}
+
+/** Open (or focus) the settings window. */
+export function openSettings(): Promise<void> {
+  return invoke('open_settings');
+}
+
+/** Whether Headroom launches at login. */
+export function getAutostart(): Promise<boolean> {
+  return invoke('get_autostart');
+}
+
+/** Enable/disable launching Headroom at login. */
+export function setAutostart(enabled: boolean): Promise<void> {
+  return invoke('set_autostart', { enabled });
 }

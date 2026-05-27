@@ -139,6 +139,35 @@ fn open_onboarding(app: AppHandle) {
     }
 }
 
+/// Show the settings window (used by the popover's settings button).
+#[tauri::command]
+fn open_settings(app: AppHandle) {
+    if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Whether Headroom is registered to launch at login.
+#[tauri::command]
+fn get_autostart(app: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// Enable or disable launching Headroom at login.
+#[tauri::command]
+fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    let result = if enabled {
+        manager.enable()
+    } else {
+        manager.disable()
+    };
+    result.map_err(|e| e.to_string())
+}
+
 /// Open an embedded Claude login window. The webview is a real browser engine,
 /// so it clears the Cloudflare challenge our HTTP client cannot. After the user
 /// signs in, poll the webview cookie store for the `sessionKey`, store it, close
@@ -200,16 +229,6 @@ async fn start_claude_signin(
                 let snapshot = poll_once(state.clone()).await;
                 let _ = app_handle.emit("tokens-updated", &snapshot);
                 break;
-            } else if !cookies.is_empty() {
-                // TEMP diagnostic: names only, never values.
-                let names: Vec<&str> = cookies.iter().map(|c| c.name()).collect();
-                info!(
-                    count = cookies.len(),
-                    ?names,
-                    "claude-login cookies (no sessionKey)"
-                );
-            } else {
-                info!("claude-login: cookie store empty");
             }
         }
     });
@@ -225,6 +244,11 @@ async fn poll_once(state: Arc<AppState>) -> Snapshot {
         match tokio::time::timeout(Duration::from_secs(10), source.fetch(&state.credentials)).await
         {
             Ok(Ok(status)) => services.push(status),
+            Ok(Err(sources::SourceError::MissingCredentials(_))) => {
+                // Not an error state — the user simply hasn't connected this
+                // service yet. Surface a "needs setup" card, not "unreachable".
+                services.push(ServiceStatus::not_configured(id, source.name()));
+            }
             Ok(Err(e)) => {
                 warn!(source = id, error = ?e, "source fetch failed");
                 services.push(ServiceStatus::unreachable(id, source.name(), e.to_string()));
@@ -249,21 +273,23 @@ async fn poll_once(state: Arc<AppState>) -> Snapshot {
     snapshot
 }
 
-/// The highest enabled notification threshold a usage percentage has crossed,
-/// or 0 if none. 95 takes precedence over 80.
-fn crossed_threshold(pct: f64, notify_80: bool, notify_95: bool) -> u8 {
-    if notify_95 && pct >= 95.0 {
-        95
-    } else if notify_80 && pct >= 80.0 {
-        80
+/// The highest enabled threshold a usage percentage has crossed (returns the
+/// threshold's own percentage value), or 0 if none. A threshold of 0 is "off",
+/// and the critical threshold takes precedence over the warning one.
+fn crossed_threshold(pct: f64, warn_pct: u8, crit_pct: u8) -> u8 {
+    if crit_pct > 0 && pct >= crit_pct as f64 {
+        crit_pct
+    } else if warn_pct > 0 && pct >= warn_pct as f64 {
+        warn_pct
     } else {
         0
     }
 }
 
 /// Fire a desktop notification the first time an active quota crosses an
-/// enabled threshold (80% / 95%), once per crossing. Resets a quota's state
-/// when it drops back below 80% so a later re-crossing alerts again.
+/// enabled threshold, once per crossing: an orange "heads up" at the warning
+/// threshold, a red "critical" at the critical threshold. State resets when the
+/// quota drops back below both, so a later re-crossing alerts again.
 async fn notify_thresholds(
     app: &AppHandle,
     state: &Arc<AppState>,
@@ -272,7 +298,9 @@ async fn notify_thresholds(
 ) {
     use tauri_plugin_notification::NotificationExt;
 
-    if !settings.notify_80 && !settings.notify_95 {
+    let warn = settings.notify_warn_pct;
+    let crit = settings.notify_crit_pct;
+    if warn == 0 && crit == 0 {
         return;
     }
 
@@ -288,15 +316,26 @@ async fn notify_thresholds(
             let pct = (quota.used / quota.total) * 100.0;
             let key = format!("{}:{}", service.id, quota.label);
 
-            if pct < 80.0 {
+            let crossed = crossed_threshold(pct, warn, crit);
+            let last = notified.get(&key).copied().unwrap_or(0);
+
+            if crossed == 0 {
+                // Back below every enabled threshold — re-arm.
                 notified.insert(key, 0);
                 continue;
             }
-
-            let crossed = crossed_threshold(pct, settings.notify_80, settings.notify_95);
-            let last = notified.get(&key).copied().unwrap_or(0);
             if crossed > last {
-                let body = format!("{} · {} at {:.0}%", service.name, quota.label, pct);
+                // Critical (red) when the crit threshold is what we crossed.
+                let is_crit = crit > 0 && crossed == crit;
+                let (marker, level) = if is_crit {
+                    ("🔴", "Critical")
+                } else {
+                    ("🟠", "Heads up")
+                };
+                let body = format!(
+                    "{marker} {level}: {} · {} at {:.0}%",
+                    service.name, quota.label, pct
+                );
                 if let Err(e) = app
                     .notification()
                     .builder()
@@ -335,6 +374,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(state.clone())
         .invoke_handler(tauri::generate_handler![
             refresh_all,
@@ -347,6 +390,9 @@ pub fn run() {
             get_settings,
             set_settings,
             open_onboarding,
+            open_settings,
+            get_autostart,
+            set_autostart,
             start_claude_signin
         ])
         .setup(move |app| {
@@ -363,6 +409,21 @@ pub fn run() {
                 if let Some(window) = app.get_webview_window("onboarding") {
                     let _ = window.show();
                     let _ = window.set_focus();
+                }
+            }
+
+            // Tray-app lifecycle: closing a window hides it instead of
+            // destroying it, so it can be reopened from the tray and closing a
+            // window never quits the app (only the tray "Quit" does).
+            for label in ["popover", "onboarding", "settings"] {
+                if let Some(window) = app.get_webview_window(label) {
+                    let w = window.clone();
+                    window.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            let _ = w.hide();
+                        }
+                    });
                 }
             }
 
@@ -393,18 +454,21 @@ mod tests {
     use super::crossed_threshold;
 
     #[test]
-    fn thresholds_respect_enabled_flags_and_precedence() {
-        // 95 wins over 80 when both enabled.
-        assert_eq!(crossed_threshold(96.0, true, true), 95);
-        assert_eq!(crossed_threshold(85.0, true, true), 80);
-        assert_eq!(crossed_threshold(50.0, true, true), 0);
+    fn thresholds_respect_configured_values_and_precedence() {
+        // Defaults: warn 80, crit 95. Crit wins when both are crossed.
+        assert_eq!(crossed_threshold(96.0, 80, 95), 95);
+        assert_eq!(crossed_threshold(85.0, 80, 95), 80);
+        assert_eq!(crossed_threshold(50.0, 80, 95), 0);
         // Boundaries are inclusive.
-        assert_eq!(crossed_threshold(95.0, true, true), 95);
-        assert_eq!(crossed_threshold(80.0, true, true), 80);
-        // Disabled flags are never reported.
-        assert_eq!(crossed_threshold(99.0, true, false), 80);
-        assert_eq!(crossed_threshold(99.0, false, true), 95);
-        assert_eq!(crossed_threshold(99.0, false, false), 0);
-        assert_eq!(crossed_threshold(85.0, false, true), 0);
+        assert_eq!(crossed_threshold(95.0, 80, 95), 95);
+        assert_eq!(crossed_threshold(80.0, 80, 95), 80);
+        // A threshold of 0 is "off".
+        assert_eq!(crossed_threshold(99.0, 80, 0), 80);
+        assert_eq!(crossed_threshold(99.0, 0, 95), 95);
+        assert_eq!(crossed_threshold(99.0, 0, 0), 0);
+        assert_eq!(crossed_threshold(85.0, 0, 95), 0);
+        // Custom thresholds are honored.
+        assert_eq!(crossed_threshold(72.0, 70, 90), 70);
+        assert_eq!(crossed_threshold(91.0, 70, 90), 90);
     }
 }

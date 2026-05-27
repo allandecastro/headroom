@@ -1,38 +1,61 @@
+import type { ReactNode } from 'react';
 import type { ServiceStatus, Quota } from '../lib/api';
+import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
 
 interface Props {
   service: ServiceStatus;
+  showClaudeDesign?: boolean;
 }
 
-export function TokenCard({ service }: Props) {
-  if (service.state === 'unreachable') {
+function serviceIcon(id: string): ReactNode {
+  if (id === 'claude') return <ClaudeIcon />;
+  if (id === 'copilot') return <GitHubIcon />;
+  return null;
+}
+
+export function TokenCard({ service, showClaudeDesign = false }: Props) {
+  const header = (
+    <header className="mb-2.5 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-tertiary">
+      <span className="inline-flex text-fg-secondary">{serviceIcon(service.id)}</span>
+      <span>{service.name}</span>
+      {service.state === 'active' && service.plan && (
+        <span className="ml-auto text-[10px] font-normal normal-case tracking-normal text-fg-quaternary">
+          {service.plan}
+        </span>
+      )}
+    </header>
+  );
+
+  if (service.state === 'needs_setup') {
     return (
-      <section className="py-2 border-t border-hairline border-default first:border-t-0">
-        <header className="flex items-center gap-2 mb-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-tertiary">
-          <span className="opacity-50">{service.name}</span>
-          <span className="ml-auto text-state-warn-text-dark text-[10px] inline-flex items-center gap-1">
-            ⚠ unreachable
-          </span>
-        </header>
-        <div className="text-2xs text-fg-quaternary italic">
-          {service.error_detail ?? 'No data available'}
+      <section className="py-2">
+        {header}
+        <div className="text-2xs text-fg-quaternary">Not connected — open “Set up accounts…”</div>
+      </section>
+    );
+  }
+
+  if (service.state === 'unreachable' || service.state === 'auth_required') {
+    return (
+      <section className="py-2">
+        {header}
+        <div className="text-2xs italic text-fg-quaternary">
+          {service.state === 'auth_required'
+            ? 'Sign in again'
+            : (service.error_detail ?? 'Unreachable')}
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-2 border-t border-hairline border-default first:border-t-0">
-      <header className="flex items-center gap-2 mb-2.5 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-tertiary">
-        <span>{service.name}</span>
-        <span className="ml-auto text-[10px] font-normal normal-case tracking-normal text-fg-quaternary">
-          {service.plan}
-        </span>
-      </header>
-
-      {service.quotas.map((q) => (
-        <QuotaRow key={q.window} quota={q} />
-      ))}
+    <section className="py-2">
+      {header}
+      {service.quotas
+        .filter((q) => q.window !== 'claude_design' || showClaudeDesign)
+        .map((q) => (
+          <QuotaRow key={q.window} quota={q} />
+        ))}
     </section>
   );
 }
