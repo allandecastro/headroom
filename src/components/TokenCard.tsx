@@ -97,10 +97,14 @@ function QuotaRow({ quota }: { quota: Quota }) {
       </div>
       {(quota.projection || (quota.sparkline?.length ?? 0) >= 2) && (
         <div className="mt-1 flex items-center gap-2">
-          {(quota.sparkline?.length ?? 0) >= 2 && (
+          {(quota.sparkline?.length ?? 0) >= 2 ? (
             <span className={state === 'ok' ? 'text-fg-tertiary' : stateClasses.text}>
               <Sparkline points={quota.sparkline!} />
             </span>
+          ) : (
+            quota.projection && (
+              <span className="text-2xs italic text-fg-quaternary">collecting…</span>
+            )
           )}
           {quota.projection && (
             <span
