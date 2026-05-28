@@ -10,6 +10,10 @@ import type { Snapshot } from './lib/api';
 export default function App() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [showClaudeDesign, setShowClaudeDesign] = useState(false);
+  // Tray + popover colour thresholds, sourced from the same setting as the
+  // desktop notifications so one knob controls everything.
+  const [warnPct, setWarnPct] = useState(80);
+  const [critPct, setCritPct] = useState(95);
   const [, forceTick] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 360, true);
@@ -18,16 +22,22 @@ export default function App() {
     // Initial fetch
     invoke<Snapshot>('refresh_all').then(setSnapshot).catch(console.error);
     getSettings()
-      .then((s) => setShowClaudeDesign(s.show_claude_design))
+      .then((s) => {
+        setShowClaudeDesign(s.show_claude_design);
+        setWarnPct(s.notify_warn_pct);
+        setCritPct(s.notify_crit_pct);
+      })
       .catch(console.error);
 
     // Subscribe to backend updates
     const unlistenTokens = listen<Snapshot>('tokens-updated', (event) => {
       setSnapshot(event.payload);
     });
-    // React instantly to settings changes (e.g. the Claude Design toggle).
+    // React instantly to settings changes (Claude Design toggle, threshold sliders).
     const unlistenSettings = listen<Settings>('settings-updated', (event) => {
       setShowClaudeDesign(event.payload.show_claude_design);
+      setWarnPct(event.payload.notify_warn_pct);
+      setCritPct(event.payload.notify_crit_pct);
     });
 
     // Tick once per second so countdowns update in the UI
@@ -50,7 +60,13 @@ export default function App() {
         ) : (
           <>
             {snapshot.services.map((svc) => (
-              <TokenCard key={svc.id} service={svc} showClaudeDesign={showClaudeDesign} />
+              <TokenCard
+                key={svc.id}
+                service={svc}
+                showClaudeDesign={showClaudeDesign}
+                warnPct={warnPct}
+                critPct={critPct}
+              />
             ))}
 
             <footer className="mt-2 flex items-center justify-between pt-1 text-[12px] text-fg-tertiary">
