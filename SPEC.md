@@ -116,7 +116,7 @@ Adapter sums `grossQuantity` where `product == "Copilot"`. The monthly limit (50
 
 Each source supports a primary "magic" path and a fallback paste path. Both paths produce the same artifact (a Bearer token or `sessionKey`) stored in the OS keychain.
 
-> **Current status (Phase 1).** Onboarding ships **paste-based** for both services — paste the Claude `sessionKey` and paste a Copilot PAT + username + plan. The Claude embedded-webview sign-in below is implemented (`start_claude_signin`) but kept secondary because identity-provider behaviour in the webview is inconsistent. The Copilot **device flow is not yet implemented** (Phase 2).
+> **Current status.** Both magic paths are implemented: Claude via an embedded webview (`start_claude_signin`) and Copilot via the GitHub OAuth device flow (`start_copilot_signin`). Paste fallbacks remain for both. The Claude webview is kept as a *secondary* default because identity-provider behaviour inside webviews is inconsistent.
 
 ### Claude — primary: embedded webview
 

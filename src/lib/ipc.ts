@@ -72,6 +72,27 @@ export function openSettings(): Promise<void> {
   return invoke('open_settings');
 }
 
+/**
+ * What the backend returns when the GitHub device flow starts: the short code
+ * the user types into GitHub, plus the URL to open and how long until the
+ * code expires.
+ */
+export interface DeviceCode {
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
+/**
+ * Start the GitHub OAuth device flow for Copilot. The backend polls in the
+ * background; subscribe to `copilot-signed-in` (success) or
+ * `copilot-signin-failed` (error with a message payload).
+ */
+export function startCopilotSignin(): Promise<DeviceCode> {
+  return invoke('start_copilot_signin');
+}
+
 /** Whether Headroom launches at login. */
 export function getAutostart(): Promise<boolean> {
   return invoke('get_autostart');
