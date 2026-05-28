@@ -9,6 +9,7 @@ interface Props {
   advancedLabel: string;
   children: ReactNode; // the paste form, revealed when "advanced" is expanded
   onPrimary?: () => void; // when set, the "magic" sign-in button is live; otherwise disabled (Phase 2)
+  extra?: ReactNode; // optional status content rendered directly under the primary button
 }
 
 // One service block in the onboarding picker.
@@ -21,6 +22,7 @@ export function ServiceAuthCard({
   advancedLabel,
   children,
   onPrimary,
+  extra,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
@@ -52,6 +54,8 @@ export function ServiceAuthCard({
           <span className="ml-1 text-[9px] uppercase tracking-[0.08em] text-fg-tertiary">soon</span>
         </button>
       )}
+
+      {extra}
 
       <div className="flex items-center gap-2 my-2 text-[10px] uppercase tracking-[0.08em] text-fg-quaternary before:flex-1 before:h-[0.5px] before:bg-[var(--border-default)] before:content-[''] after:flex-1 after:h-[0.5px] after:bg-[var(--border-default)] after:content-['']">
         or

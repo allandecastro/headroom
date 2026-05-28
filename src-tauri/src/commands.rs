@@ -6,6 +6,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tracing::{error, warn};
 
+use crate::gh_device;
 use crate::orchestrator::poll_once;
 use crate::settings::Settings;
 use crate::{credentials, AppState, Snapshot};
@@ -199,4 +200,60 @@ fn show_window(app: &AppHandle, label: &str) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Start the GitHub OAuth device flow for Copilot. Returns the public
+/// `DeviceCode` (user code + verification URI) immediately, then polls in the
+/// background; on success it stores the token + fetched username and emits
+/// `copilot-signed-in` (or `copilot-signin-failed` on error).
+#[tauri::command]
+pub async fn start_copilot_signin(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<gh_device::DeviceCode, String> {
+    let full = gh_device::start(gh_device::GITHUB_CLIENT_ID)
+        .await
+        .map_err(|e| e.to_string())?;
+    let device_code = full.device_code;
+    let public = full.public.clone();
+    let interval = full.public.interval;
+    let expires_in = full.public.expires_in;
+
+    let state = state.inner().clone();
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match gh_device::poll_for_token(
+            gh_device::GITHUB_CLIENT_ID,
+            &device_code,
+            interval,
+            expires_in,
+        )
+        .await
+        {
+            Ok(token) => {
+                if let Err(e) = state.credentials.set("copilot.token", &token) {
+                    error!(?e, "failed to store copilot token");
+                    let _ = app_handle.emit("copilot-signin-failed", e.to_string());
+                    return;
+                }
+                match gh_device::fetch_username(&token).await {
+                    Ok(login) => {
+                        if let Err(e) = state.credentials.set("copilot.username", &login) {
+                            error!(?e, "failed to store copilot username");
+                        }
+                    }
+                    Err(e) => warn!(?e, "failed to fetch GitHub username after sign-in"),
+                }
+                let _ = app_handle.emit("copilot-signed-in", ());
+                let snapshot = poll_once(state.clone()).await;
+                let _ = app_handle.emit("tokens-updated", &snapshot);
+            }
+            Err(e) => {
+                warn!(?e, "copilot device flow failed");
+                let _ = app_handle.emit("copilot-signin-failed", e.to_string());
+            }
+        }
+    });
+
+    Ok(public)
 }
