@@ -129,6 +129,7 @@ impl CopilotSource {
                 resets_at,
                 advice: None,
                 projection: None,
+                sparkline: vec![],
             }],
             error_detail: None,
         })

@@ -127,6 +127,7 @@ mod tests {
             resets_at: chrono::Utc::now(),
             advice: None,
             projection: None,
+            sparkline: vec![],
         }
     }
 

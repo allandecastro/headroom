@@ -8,7 +8,7 @@ pub mod copilot;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::credentials::Credentials;
@@ -24,7 +24,7 @@ pub enum ServiceState {
     Unreachable,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuotaWindow {
     FiveHour,
@@ -60,6 +60,10 @@ pub struct Quota {
     /// leave it `None`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub projection: Option<crate::projection::Projection>,
+    /// Downsampled recent utilization for the sparkline, filled in by the
+    /// orchestrator from persisted history (sources leave it empty).
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub sparkline: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
