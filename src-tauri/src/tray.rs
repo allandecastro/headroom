@@ -113,8 +113,14 @@ fn show_window(app: &AppHandle, label: &str) {
     }
 }
 
-pub fn update_state(app: &AppHandle, snapshot: &Snapshot, show_percentage: bool) {
-    let state = compute_state(snapshot);
+pub fn update_state(
+    app: &AppHandle,
+    snapshot: &Snapshot,
+    show_percentage: bool,
+    warn_pct: u8,
+    crit_pct: u8,
+) {
+    let state = compute_state(snapshot, warn_pct, crit_pct);
     let Some(tray) = app.tray_by_id("main") else {
         return;
     };
@@ -141,7 +147,9 @@ pub fn update_state(app: &AppHandle, snapshot: &Snapshot, show_percentage: bool)
     let _ = tray.set_tooltip(Some(&tooltip));
 }
 
-fn compute_state(snapshot: &Snapshot) -> TrayState {
+/// Tray colour follows the user's notification thresholds (see SettingsPanel).
+/// A threshold of 0 is "off" — that level never colours the tray.
+fn compute_state(snapshot: &Snapshot, warn_pct: u8, crit_pct: u8) -> TrayState {
     let mut worst = TrayState::Ok;
     let mut any_unreachable = false;
 
@@ -152,10 +160,13 @@ fn compute_state(snapshot: &Snapshot) -> TrayState {
             ServiceState::NeedsSetup => {}
             ServiceState::Active => {
                 for q in &service.quotas {
+                    if q.total <= 0.0 {
+                        continue;
+                    }
                     let pct = (q.used / q.total) * 100.0;
-                    let local = if pct >= 95.0 {
+                    let local = if crit_pct > 0 && pct >= crit_pct as f64 {
                         TrayState::Crit
-                    } else if pct >= 80.0 {
+                    } else if warn_pct > 0 && pct >= warn_pct as f64 {
                         TrayState::Warn
                     } else {
                         TrayState::Ok

@@ -104,7 +104,13 @@ pub(crate) fn spawn_poll_loop(handle: AppHandle, state: Arc<AppState>) {
                 error!(?e, "failed to emit tokens-updated");
             }
             let settings = state.settings.read().await.clone();
-            tray::update_state(&handle, &snapshot, settings.show_tray_percentage);
+            tray::update_state(
+                &handle,
+                &snapshot,
+                settings.show_tray_percentage,
+                settings.notify_warn_pct,
+                settings.notify_crit_pct,
+            );
             notify_thresholds(&handle, &state, &snapshot, &settings).await;
             tokio::time::sleep(Duration::from_secs(settings.poll_interval_secs)).await;
         }

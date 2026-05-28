@@ -5,6 +5,10 @@ import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
 interface Props {
   service: ServiceStatus;
   showClaudeDesign?: boolean;
+  /** Percentage at which a quota turns amber (0 = off). */
+  warnPct: number;
+  /** Percentage at which a quota turns red (0 = off). */
+  critPct: number;
 }
 
 function serviceIcon(id: string): ReactNode {
@@ -13,7 +17,7 @@ function serviceIcon(id: string): ReactNode {
   return null;
 }
 
-export function TokenCard({ service, showClaudeDesign = false }: Props) {
+export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct }: Props) {
   const header = (
     <header className="mb-2.5 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.08em] text-fg-tertiary">
       <span className="inline-flex text-fg-secondary">{serviceIcon(service.id)}</span>
@@ -54,15 +58,18 @@ export function TokenCard({ service, showClaudeDesign = false }: Props) {
       {service.quotas
         .filter((q) => q.window !== 'claude_design' || showClaudeDesign)
         .map((q) => (
-          <QuotaRow key={q.window} quota={q} />
+          <QuotaRow key={q.window} quota={q} warnPct={warnPct} critPct={critPct} />
         ))}
     </section>
   );
 }
 
-function QuotaRow({ quota }: { quota: Quota }) {
+function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; critPct: number }) {
   const pct = Math.round((quota.used / quota.total) * 100);
-  const state = pct >= 95 ? 'crit' : pct >= 80 ? 'warn' : 'ok';
+  // A threshold of 0 is "off" — that level never colours the row, matching the
+  // tray's compute_state in src-tauri/src/tray.rs.
+  const state =
+    critPct > 0 && pct >= critPct ? 'crit' : warnPct > 0 && pct >= warnPct ? 'warn' : 'ok';
 
   const stateClasses = {
     ok: { bar: 'bg-state-ok-fill-dark', text: 'text-state-ok-text-dark' },
