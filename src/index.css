@@ -37,7 +37,9 @@ body,
 #root {
   margin: 0;
   height: 100%;
-  background: transparent;
+  /* Opaque window background so no white shows through on overscroll or when
+     the window is a hair taller than its content. */
+  background: var(--bg-window-opaque);
   color: var(--fg-primary);
   font-family: theme('fontFamily.sans');
   font-size: 12px;

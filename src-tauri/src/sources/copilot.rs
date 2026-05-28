@@ -128,6 +128,7 @@ impl CopilotSource {
                 unit: QuotaUnit::Requests,
                 resets_at,
                 advice: None,
+                projection: None,
             }],
             error_detail: None,
         })

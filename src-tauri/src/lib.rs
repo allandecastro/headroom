@@ -6,6 +6,7 @@ mod commands;
 mod credentials;
 mod notifications;
 mod orchestrator;
+mod projection;
 mod settings;
 mod sources;
 mod tray;
@@ -59,6 +60,15 @@ pub fn run() {
     });
 
     tauri::Builder::default()
+        // Must be the first plugin: a second launch is redirected here to
+        // surface the running instance instead of starting a new one.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("popover") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(

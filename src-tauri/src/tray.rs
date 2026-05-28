@@ -85,10 +85,15 @@ fn toggle_popover(app: &AppHandle) {
     let Some(window) = app.get_webview_window("popover") else {
         return;
     };
+    // A minimized window still reports `is_visible`, so check it explicitly —
+    // otherwise a tray click on a minimized popover would hide it (no-op to the
+    // eye) instead of restoring it.
+    let minimized = window.is_minimized().unwrap_or(false);
     let visible = window.is_visible().unwrap_or(false);
-    let action = if visible {
+    let action = if visible && !minimized {
         window.hide()
     } else {
+        let _ = window.unminimize();
         let _ = window.show();
         window.set_focus()
     };
@@ -101,6 +106,7 @@ fn show_window(app: &AppHandle, label: &str) {
     let Some(window) = app.get_webview_window(label) else {
         return;
     };
+    let _ = window.unminimize();
     let _ = window.show();
     if let Err(e) = window.set_focus() {
         error!(?e, label, "failed to focus window");
