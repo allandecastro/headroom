@@ -10,12 +10,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// The OAuth App client_id for Headroom. Device flow does **not** use a
+/// The OAuth/GitHub App client_id for Headroom. Device flow does **not** use a
 /// client secret, so this is safe to hardcode.
-///
-/// **Replace** with the real Client ID from the registered "Headroom" OAuth App
-/// at https://github.com/settings/applications/new (Enable Device Flow).
-pub const GITHUB_CLIENT_ID: &str = "REPLACE_WITH_HEADROOM_OAUTH_APP_CLIENT_ID";
+pub const GITHUB_CLIENT_ID: &str = "Ov23li0GQonRoripvQcM";
 
 /// Scopes requested. `read:user` lets us fetch the authenticated user's
 /// username via `GET /user` after sign-in.
