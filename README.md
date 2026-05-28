@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-pre--alpha-orange?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/badge/version-0.1.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/allandecastro/headroom/actions/workflows/ci.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/allandecastro/headroom/actions/workflows/release.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/release.yml/badge.svg" alt="CD" /></a>
@@ -52,19 +52,20 @@ _To be added once the first build ships. See [`docs/mockups/`](docs/mockups/) fo
 
 ## Features
 
-- **Live quota tracking** for Claude Code (5-hour, weekly Sonnet, weekly Opus) and GitHub Copilot (monthly premium requests, soon AI Credits)
-- **Tray badge** showing the worst quota across services, color-coded green / amber / red
-- **7-day burndown chart** with linear projection — see whether you'll hit the cap before reset
-- **Native vibrancy** on macOS and Mica on Windows 11 — the popover feels like part of the OS, not an Electron window
-- **Multi-auth onboarding** — sign in via embedded webview / OAuth device flow, or paste a token for power users
-- **Credentials in OS keychain** only — nothing leaves your machine
-- **Source detection** — if Claude Code or Copilot is already authenticated on your machine, Headroom finds it and uses it
+- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly premium requests, AI Credits after June 1 2026).
+- **Tray icon** colour-coded green / amber / red from the worst quota across services; hover shows the percentage; the tray menu offers Open / Set up accounts / Settings / Quit.
+- **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap.
+- **Magic sign-in for both services** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; _"Sign in with GitHub"_ runs the OAuth device flow (short code → authorize → token). Paste-a-token fallbacks remain for both under _Advanced_.
+- **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
+- **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
+- **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
+- **Live theme switching** (auto / light / dark) and a popover that auto-fits its content above the taskbar.
 
 ---
 
 ## Status
 
-Pre-alpha. The data acquisition strategies for both Claude and Copilot are validated against working third-party widgets. Phase 1 (MVP) targets a single-user, single-account build with manual token entry as the fallback auth path. See [ROADMAP.md](ROADMAP.md) for what's in each phase.
+**v0.1.0** — first tagged release. The data acquisition strategies for both Claude and Copilot run live against the official endpoints; credentials are persisted; both magic sign-in paths are shipped alongside the paste fallbacks. See [ROADMAP.md](ROADMAP.md) for what's coming next.
 
 ---
 
@@ -72,14 +73,20 @@ Pre-alpha. The data acquisition strategies for both Claude and Copilot are valid
 
 ### From a release
 
-Pre-built binaries will be published on the [Releases](https://github.com/USER/headroom/releases) page once the first tagged version ships. Both signed installers (macOS `.dmg`, Windows MSI) and Linux `AppImage` will be available.
+Grab the installer for your platform from the [Releases](https://github.com/allandecastro/headroom/releases) page:
+
+- **Windows:** `Headroom_x.y.z_x64_en-US.msi` (per-user install; registers the AppUserModelID so toast notifications correctly attribute to "Headroom").
+- **macOS:** `Headroom_x.y.z_aarch64.dmg` / `_x64.dmg`.
+- **Linux:** `Headroom_x.y.z_amd64.AppImage` or `.deb`.
+
+After installing, launch from the Start Menu / Launchpad and look in your system tray (Windows 11 may hide new tray icons under the `^` overflow — drag the icon out once and it stays visible).
 
 ### From source
 
 You need Rust (1.78+) and Node.js (20+) installed.
 
 ```bash
-git clone https://github.com/USER/headroom.git
+git clone https://github.com/allandecastro/headroom.git
 cd headroom
 npm install
 npm run tauri dev
@@ -102,10 +109,17 @@ headroom/
 │   └── main.tsx
 ├── src-tauri/              # Rust backend
 │   ├── src/
-│   │   ├── sources/        # QuotaSource trait and implementations
+│   │   ├── sources/        # QuotaSource trait + claude.rs, copilot.rs
+│   │   ├── commands.rs     # Tauri IPC handlers exposed to the renderer
 │   │   ├── credentials.rs  # OS keychain wrapper
+│   │   ├── gh_device.rs    # GitHub OAuth device-flow client
+│   │   ├── history.rs      # Persisted per-quota usage time series
+│   │   ├── notifications.rs# Threshold-crossing desktop alerts
+│   │   ├── orchestrator.rs # Poll loop + classification
+│   │   ├── projection.rs   # Burndown projection (pure)
+│   │   ├── settings.rs     # User preferences, atomic JSON persist
 │   │   ├── tray.rs         # Tray icon state machine
-│   │   ├── lib.rs          # App builder, IPC handlers, poll loop
+│   │   ├── lib.rs          # AppState + run() wiring
 │   │   └── main.rs
 │   ├── Cargo.toml
 │   └── tauri.conf.json
@@ -115,19 +129,21 @@ headroom/
 
 ### Useful commands
 
-| Command                       | What it does                                              |
-| ----------------------------- | --------------------------------------------------------- |
-| `npm run dev`                 | Vite dev server (renderer only, no tray)                  |
-| `npm run tauri dev`           | Full app with hot-reload on both Rust and React sides     |
-| `npm run lint`                | ESLint + Prettier on the renderer                         |
-| `npm run typecheck`           | TypeScript without emit                                   |
-| `cd src-tauri && cargo clippy`| Rust linter                                               |
-| `cd src-tauri && cargo test`  | Rust unit + integration tests                             |
-| `npm run tauri build`         | Production build for the current host platform            |
+| Command                        | What it does                                          |
+| ------------------------------ | ----------------------------------------------------- |
+| `npm run dev`                  | Vite dev server (renderer only, no tray)              |
+| `npm run tauri dev`            | Full app with hot-reload on both Rust and React sides |
+| `npm run lint`                 | ESLint + Prettier on the renderer                     |
+| `npm run typecheck`            | TypeScript without emit                               |
+| `cd src-tauri && cargo clippy` | Rust linter                                           |
+| `cd src-tauri && cargo test`   | Rust unit + integration tests                         |
+| `npm run tauri build`          | Production build for the current host platform        |
 
 ### Tauri config notes
 
-`src-tauri/tauri.conf.json` sets `transparent: true` on the main popover window and requests `vibrancy: "sidebar"` on macOS / `effects: ["mica"]` on Windows. Linux falls back to a translucent solid since blur support varies by compositor.
+The popover, onboarding, and settings windows are normal decorated windows with an opaque background — vibrancy/Mica was tried and shelved (it interfered with the auto-fit-to-content sizing and made the small popover read as "ghosty" when nothing was behind it). The popover anchors to the bottom-right of the work area; settings/onboarding centre within the usable area so neither slips behind the taskbar.
+
+The tray is built **only in code** (`src-tauri/src/tray.rs`) — `tauri.conf.json` must **not** also declare a `trayIcon`, or two icons appear in the system tray.
 
 #### Regenerating icons
 
