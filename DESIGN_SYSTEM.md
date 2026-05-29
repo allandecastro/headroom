@@ -16,44 +16,45 @@ The visual language for Headroom. Every screen, icon, and component in the app s
 
 ### Light mode
 
-| Token                          | Value             | Used for                                  |
-| ------------------------------ | ----------------- | ----------------------------------------- |
-| `--bg-window`                  | `rgba(248, 247, 244, 0.82)` | Popover background (translucent)|
-| `--bg-window-opaque`           | `#f8f7f4`         | Settings & onboarding windows             |
-| `--bg-secondary`               | `rgba(0, 0, 0, 0.04)` | Subtle row backgrounds                |
-| `--border-default`             | `rgba(0, 0, 0, 0.08)` | Hairlines between sections            |
-| `--border-emphasis`            | `rgba(0, 0, 0, 0.15)` | Buttons, inputs                       |
-| `--fg-primary`                 | `rgba(26, 26, 26, 0.92)` | Body text                          |
-| `--fg-secondary`               | `rgba(26, 26, 26, 0.72)` | Labels                             |
-| `--fg-tertiary`                | `rgba(26, 26, 26, 0.50)` | Meta, timestamps                   |
-| `--fg-quaternary`              | `rgba(26, 26, 26, 0.30)` | Disabled, placeholders             |
+| Token                | Value                       | Used for                         |
+| -------------------- | --------------------------- | -------------------------------- |
+| `--bg-window`        | `rgba(248, 247, 244, 0.82)` | Popover background (translucent) |
+| `--bg-window-opaque` | `#f8f7f4`                   | Settings & onboarding windows    |
+| `--bg-secondary`     | `rgba(0, 0, 0, 0.04)`       | Subtle row backgrounds           |
+| `--border-default`   | `rgba(0, 0, 0, 0.08)`       | Hairlines between sections       |
+| `--border-emphasis`  | `rgba(0, 0, 0, 0.15)`       | Buttons, inputs                  |
+| `--fg-primary`       | `rgba(26, 26, 26, 0.92)`    | Body text                        |
+| `--fg-secondary`     | `rgba(26, 26, 26, 0.72)`    | Labels                           |
+| `--fg-tertiary`      | `rgba(26, 26, 26, 0.50)`    | Meta, timestamps                 |
+| `--fg-quaternary`    | `rgba(26, 26, 26, 0.30)`    | Disabled, placeholders           |
 
 ### Dark mode
 
-| Token                          | Value             | Used for                                  |
-| ------------------------------ | ----------------- | ----------------------------------------- |
-| `--bg-window`                  | `rgba(22, 24, 30, 0.78)` | Popover background (translucent)   |
-| `--bg-window-opaque`           | `rgba(22, 24, 30, 0.96)` | Settings & onboarding windows      |
-| `--bg-secondary`               | `rgba(255, 255, 255, 0.05)` | Subtle row backgrounds          |
-| `--border-default`             | `rgba(255, 255, 255, 0.08)` | Hairlines between sections      |
-| `--border-emphasis`            | `rgba(255, 255, 255, 0.15)` | Buttons, inputs                 |
-| `--fg-primary`                 | `rgba(255, 255, 255, 0.92)` | Body text                       |
-| `--fg-secondary`               | `rgba(255, 255, 255, 0.78)` | Labels                          |
-| `--fg-tertiary`                | `rgba(255, 255, 255, 0.50)` | Meta, timestamps                |
-| `--fg-quaternary`              | `rgba(255, 255, 255, 0.30)` | Disabled, placeholders          |
+| Token                | Value                       | Used for                         |
+| -------------------- | --------------------------- | -------------------------------- |
+| `--bg-window`        | `rgba(22, 24, 30, 0.78)`    | Popover background (translucent) |
+| `--bg-window-opaque` | `rgba(22, 24, 30, 0.96)`    | Settings & onboarding windows    |
+| `--bg-secondary`     | `rgba(255, 255, 255, 0.05)` | Subtle row backgrounds           |
+| `--border-default`   | `rgba(255, 255, 255, 0.08)` | Hairlines between sections       |
+| `--border-emphasis`  | `rgba(255, 255, 255, 0.15)` | Buttons, inputs                  |
+| `--fg-primary`       | `rgba(255, 255, 255, 0.92)` | Body text                        |
+| `--fg-secondary`     | `rgba(255, 255, 255, 0.78)` | Labels                           |
+| `--fg-tertiary`      | `rgba(255, 255, 255, 0.50)` | Meta, timestamps                 |
+| `--fg-quaternary`    | `rgba(255, 255, 255, 0.30)` | Disabled, placeholders           |
 
 ### Status colors
 
 State colors use a two-mode palette. Light values are slightly desaturated terra tones; dark values are brighter pastel-y tones for translucent dark backgrounds.
 
-|         | Light fill | Light text | Dark fill  | Dark text  |
-| ------- | ---------- | ---------- | ---------- | ---------- |
-| OK      | `#6a8e4a`  | `#5a7d3a`  | `#8ab368`  | `#9bc176`  |
-| Warn    | `#c08a2a`  | `#a87420`  | `#d99c52`  | `#e0a85e`  |
-| Crit    | `#b03533`  | `#9c2e2c`  | `#d4625d`  | `#e07670`  |
+|         | Light fill | Light text | Dark fill                | Dark text                |
+| ------- | ---------- | ---------- | ------------------------ | ------------------------ |
+| OK      | `#6a8e4a`  | `#5a7d3a`  | `#8ab368`                | `#9bc176`                |
+| Warn    | `#c08a2a`  | `#a87420`  | `#d99c52`                | `#e0a85e`                |
+| Crit    | `#b03533`  | `#9c2e2c`  | `#d4625d`                | `#e07670`                |
 | Unreach | `#888780`  | `#666561`  | `rgba(255,255,255,0.25)` | `rgba(255,255,255,0.45)` |
 
 **Rules:**
+
 - Status colors only appear in three places: progress bars, percentage numbers ≥ warn, advisory text under critical quotas. Never as background fills.
 - The "unreachable" state is gray, not red. Red is reserved for "still authenticated but about to expire."
 - Headers and labels never take status colors.
@@ -65,23 +66,25 @@ State colors use a two-mode palette. Light values are slightly desaturated terra
 ### Fonts
 
 ```css
---font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
---font-mono: ui-monospace, SF Mono, Menlo, "Cascadia Code", "Source Code Pro", monospace;
+--font-sans:
+  ui-sans-serif, system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', Roboto,
+  'Helvetica Neue', Arial, sans-serif;
+--font-mono: ui-monospace, SF Mono, Menlo, 'Cascadia Code', 'Source Code Pro', monospace;
 ```
 
 We deliberately use system fonts. The popover sits in the menu bar — having it look identical to other native UI is the goal. No web fonts.
 
 ### Sizes and weights
 
-| Element                       | Size      | Weight | Notes                                |
-| ----------------------------- | --------- | ------ | ------------------------------------ |
-| Section labels (UPPERCASE)    | 11 px     | 500    | `letter-spacing: 0.08em`             |
-| Body labels                   | 12 px     | 400    |                                      |
-| Numbers (monospace)           | 10.5 px   | 500/400| `font-variant-numeric: tabular-nums` |
-| Meta / timestamps             | 9.5–10 px | 400    | `--fg-tertiary` or `--fg-quaternary` |
-| Settings titles               | 13 px     | 500    |                                      |
-| Onboarding heading            | 17–18 px  | 500    | `letter-spacing: -0.01em`            |
-| Plan badges                   | 10 px     | 400    | `--fg-tertiary`                      |
+| Element                    | Size      | Weight  | Notes                                |
+| -------------------------- | --------- | ------- | ------------------------------------ |
+| Section labels (UPPERCASE) | 11 px     | 500     | `letter-spacing: 0.08em`             |
+| Body labels                | 12 px     | 400     |                                      |
+| Numbers (monospace)        | 10.5 px   | 500/400 | `font-variant-numeric: tabular-nums` |
+| Meta / timestamps          | 9.5–10 px | 400     | `--fg-tertiary` or `--fg-quaternary` |
+| Settings titles            | 13 px     | 500     |                                      |
+| Onboarding heading         | 17–18 px  | 500     | `letter-spacing: -0.01em`            |
+| Plan badges                | 10 px     | 400     | `--fg-tertiary`                      |
 
 **Two weights only: 400 and 500.** Never 600 or 700 — heavy weights look out of place against system UI.
 
@@ -111,8 +114,12 @@ The 0.5px border is intentional — it reads as a hairline on retina displays. D
 A logical group within the surface (one service block, or one settings group).
 
 ```css
-.section { padding: 8px 0; }
-.section + .section { border-top: 0.5px solid var(--border-default); }
+.section {
+  padding: 8px 0;
+}
+.section + .section {
+  border-top: 0.5px solid var(--border-default);
+}
 ```
 
 No background, no margin, no left/right padding. The hairline between sections is the only separator.
@@ -188,12 +195,12 @@ Four states. The geometry is shared across all four — only fill / color / dash
 - **Ceiling line**: `<rect x="6" y="6" width="20" height="1.6" rx="0.8">`, fixed position in all states.
 - **Fill bar**: `<rect x="9" y="..." width="14" height="..." rx="1.5">`, height varies by percentage. At 0%: top edge at y=27, height 0. At 100%: top edge at y=9, height 18.
 
-| State        | Ceiling fill                 | Bar fill                     | Style          |
-| ------------ | ---------------------------- | ---------------------------- | -------------- |
-| OK           | `#8ab368` @ 0.55 opacity     | `#8ab368`                    | solid          |
-| Warn         | `#d99c52` @ 0.55 opacity     | `#d99c52`                    | solid          |
-| Crit         | `#d4625d` @ 0.65 opacity     | `#d4625d`                    | solid          |
-| Unreachable  | gray @ 0.7, `stroke-dasharray="2 2.2"` | none, only stroked outline of bar | dashed |
+| State       | Ceiling fill                           | Bar fill                          | Style  |
+| ----------- | -------------------------------------- | --------------------------------- | ------ |
+| OK          | `#8ab368` @ 0.55 opacity               | `#8ab368`                         | solid  |
+| Warn        | `#d99c52` @ 0.55 opacity               | `#d99c52`                         | solid  |
+| Crit        | `#d4625d` @ 0.65 opacity               | `#d4625d`                         | solid  |
+| Unreachable | gray @ 0.7, `stroke-dasharray="2 2.2"` | none, only stroked outline of bar | dashed |
 
 Exports: PNG at 16×16, 22×22, 32×32, and 64×64 (the last two are @2x for retina). Source SVG lives at `assets/tray.svg` with the four variants in `<symbol>` elements; a build script in `scripts/build-tray-icons.mjs` rasterizes via `sharp`.
 
@@ -235,6 +242,6 @@ When transitioning, no animation — both modes are pre-styled and the switch is
 
 ---
 
-## Reference mockups
+## Reference
 
-The full popover, settings panel, onboarding, burndown view, and unreachable state are mocked in `docs/mockups/`. Treat those as the source of truth for layout decisions not captured here.
+Live screenshots of the shipped UI are in [`docs/screenshots/`](docs/screenshots/) and at the top of the [README](README.md). For anything not captured in this doc, the code in `src/components/` is the source of truth.

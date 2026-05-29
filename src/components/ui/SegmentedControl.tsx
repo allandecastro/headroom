@@ -10,7 +10,7 @@ interface Props<T extends string> {
   ariaLabel?: string;
 }
 
-// See DESIGN_SYSTEM.md § SegmentedControl and docs/mockups/03-settings.html (.seg).
+// See DESIGN_SYSTEM.md § SegmentedControl.
 export function SegmentedControl<T extends string>({
   options,
   value,

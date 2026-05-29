@@ -4,7 +4,7 @@ interface Props extends ComponentPropsWithoutRef<'button'> {
   variant?: 'default' | 'primary';
 }
 
-// See DESIGN_SYSTEM.md § Button and docs/mockups/style.css (.btn / .btn-primary).
+// See DESIGN_SYSTEM.md § Button.
 export function Button({ variant = 'default', className = '', ...rest }: Props) {
   const base =
     'inline-flex items-center gap-1.5 text-[11px] px-3 py-[5px] rounded-[5px] border-hairline disabled:opacity-40 disabled:cursor-default';
