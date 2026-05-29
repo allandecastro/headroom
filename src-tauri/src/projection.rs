@@ -18,6 +18,19 @@ pub struct Projection {
     pub eta: Option<DateTime<Utc>>,
 }
 
+/// Recent-burn-rate pace, computed from the last ~24h of history samples.
+/// Complements `Projection` (which uses the window-average): `Pace` is more
+/// reactive to today's behaviour, so a quiet morning won't hide a hot afternoon.
+#[derive(Debug, Clone, Serialize)]
+pub struct Pace {
+    /// Percentage points consumed per day over the recent lookback window.
+    pub daily_rate: f64,
+    /// The most you could burn per day and still arrive at 100% exactly at reset.
+    pub safe_pace: f64,
+    /// `true` when `daily_rate > safe_pace` — you'll hit the cap early if this continues.
+    pub over_pace: bool,
+}
+
 impl QuotaWindow {
     /// The length of the quota window, used to locate its start from `resets_at`.
     /// `Monthly` is approximated at 30 days.
@@ -83,6 +96,33 @@ pub fn project(
     })
 }
 
+/// Pace from a recent-history delta: how much you're burning per day vs the
+/// max %/day that lands at exactly 100% at reset. Meaningless once you've hit
+/// the cap, or past reset, or when the delta is degenerate.
+pub fn pace(
+    used_pct: f64,
+    resets_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+    recent_delta_pct: f64,
+    recent_delta_secs: i64,
+) -> Option<Pace> {
+    if used_pct >= 100.0 || recent_delta_secs <= 0 || recent_delta_pct < 0.0 {
+        return None;
+    }
+    let secs_to_reset = (resets_at - now).num_seconds();
+    if secs_to_reset <= 0 {
+        return None;
+    }
+    let daily_rate = (recent_delta_pct / recent_delta_secs as f64) * 86_400.0;
+    let days_to_reset = secs_to_reset as f64 / 86_400.0;
+    let safe_pace = (100.0 - used_pct) / days_to_reset;
+    Some(Pace {
+        daily_rate,
+        safe_pace,
+        over_pace: daily_rate > safe_pace,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +172,33 @@ mod tests {
         let now = Utc::now();
         let resets_at = now - Duration::hours(1); // window already over
         assert!(project(50.0, QuotaWindow::WeeklyAll, resets_at, now).is_none());
+    }
+
+    #[test]
+    fn pace_flags_over_when_daily_rate_exceeds_safe_pace() {
+        // 50% used, 5 days to reset → safe_pace = 10%/day.
+        // Δ of 6%/24h ≈ 6%/day → over the 10%/day safe pace? No, 6 < 10 — within.
+        let now = Utc::now();
+        let resets_at = now + Duration::days(5);
+        let within = pace(50.0, resets_at, now, 6.0, 86_400).unwrap();
+        assert!((within.safe_pace - 10.0).abs() < 0.01);
+        assert!((within.daily_rate - 6.0).abs() < 0.01);
+        assert!(!within.over_pace);
+
+        // Δ of 15%/24h → 15%/day → over the 10%/day safe pace.
+        let over = pace(50.0, resets_at, now, 15.0, 86_400).unwrap();
+        assert!(over.over_pace);
+    }
+
+    #[test]
+    fn pace_returns_none_when_already_exhausted_or_past_reset() {
+        let now = Utc::now();
+        // Already at 100%.
+        assert!(pace(100.0, now + Duration::days(3), now, 5.0, 3600).is_none());
+        // Past reset.
+        assert!(pace(50.0, now - Duration::hours(1), now, 5.0, 3600).is_none());
+        // Degenerate delta.
+        assert!(pace(50.0, now + Duration::days(3), now, -1.0, 3600).is_none());
+        assert!(pace(50.0, now + Duration::days(3), now, 5.0, 0).is_none());
     }
 }
