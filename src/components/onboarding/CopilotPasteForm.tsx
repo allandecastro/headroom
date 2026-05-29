@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { open as openUrl } from '@tauri-apps/plugin-shell';
 import { setCopilotPlan, setCopilotToken, setCopilotUsername } from '../../lib/ipc';
 import type { CopilotPlan } from '../../lib/ipc';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -53,7 +54,22 @@ export function CopilotPasteForm() {
           setStatus('idle');
         }}
         placeholder="github_pat_… or ghp_…"
-        hint="Fine-grained token with Account → Plan → Read-only."
+        hint={
+          <>
+            Fine-grained token with <span className="font-mono">Account → Plan → Read-only</span>.{' '}
+            <button
+              type="button"
+              onClick={() =>
+                openUrl('https://github.com/settings/personal-access-tokens/new').catch(
+                  console.error,
+                )
+              }
+              className="underline hover:text-fg-secondary"
+            >
+              Create one on GitHub →
+            </button>
+          </>
+        }
       />
 
       <TextField

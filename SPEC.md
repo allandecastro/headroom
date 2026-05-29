@@ -69,11 +69,11 @@ The `orgId` comes from a prior call to `GET https://claude.ai/api/organizations`
 
 ```json
 {
-  "five_hour":         { "utilization": 3,  "resets_at": "2026-05-26T17:46:00Z" },
-  "seven_day":         { "utilization": 32, "resets_at": "2026-06-02T09:14:00Z" },
-  "seven_day_sonnet":  { "utilization": 1,  "resets_at": "2026-06-02T09:14:00Z" },
-  "seven_day_opus":    { "utilization": 0,  "resets_at": "2026-06-02T09:14:00Z" },
-  "seven_day_omelette":{ "utilization": 0,  "resets_at": "2026-06-02T09:14:00Z" }
+  "five_hour": { "utilization": 3, "resets_at": "2026-05-26T17:46:00Z" },
+  "seven_day": { "utilization": 32, "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_sonnet": { "utilization": 1, "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_opus": { "utilization": 0, "resets_at": "2026-06-02T09:14:00Z" },
+  "seven_day_omelette": { "utilization": 0, "resets_at": "2026-06-02T09:14:00Z" }
 }
 ```
 
@@ -93,7 +93,7 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2022-11-28
 ```
 
-The token must be a fine-grained PAT with `Account → Plan → Read-only`, OR a GitHub OAuth token with the equivalent scope (obtained via device flow — see [Auth flows](#auth-flows)).
+The token must be a fine-grained PAT with `Account → Plan → Read-only` — see [Auth flows](#auth-flows). Classic OAuth scopes can't grant this permission, so the magic "Sign in with GitHub" path is intentionally not used for Copilot.
 
 **Response shape:**
 
@@ -116,7 +116,7 @@ Adapter sums `grossQuantity` where `product == "Copilot"`. The monthly limit (50
 
 Each source supports a primary "magic" path and a fallback paste path. Both paths produce the same artifact (a Bearer token or `sessionKey`) stored in the OS keychain.
 
-> **Current status.** Both magic paths are implemented: Claude via an embedded webview (`start_claude_signin`) and Copilot via the GitHub OAuth device flow (`start_copilot_signin`). Paste fallbacks remain for both. The Claude webview is kept as a *secondary* default because identity-provider behaviour inside webviews is inconsistent.
+> **Current status.** Claude has a magic webview sign-in (`start_claude_signin`) with a paste-session-key fallback under "Advanced". Copilot is **paste-PAT only** — the billing endpoint requires a fine-grained PAT permission (`Account → Plan: Read-only`) that classic OAuth scopes can't grant, and shipping a GitHub App for this would add maintainer + phishing-surface for one HTTP call. The same approach is taken by every working third-party Copilot widget we surveyed (e.g. `bristena-op/copilot-usage-tracker`).
 
 ### Claude — primary: embedded webview
 
@@ -131,21 +131,11 @@ Each source supports a primary "magic" path and a fallback paste path. Both path
 
 For users who can't run a webview (some Linux distros without webkit2gtk, or air-gapped environments), a hidden "Advanced" panel accepts a manually copied `sessionKey` value. Instructions point at DevTools → Application → Cookies → `claude.ai` → `sessionKey`.
 
-### Copilot — primary: GitHub device flow
+### Copilot — paste a fine-grained PAT
 
-1. User clicks "Sign in with GitHub" in onboarding.
-2. Headroom requests a device code: `POST https://github.com/login/device/code` with `client_id={CLIENT_ID}` and `scope=read:user`.
-3. Response includes `device_code`, `user_code`, `verification_uri`, `interval`.
-4. Headroom shows the `user_code` and opens `verification_uri` in the user's default browser.
-5. User authorizes the app on GitHub.
-6. Headroom polls `POST https://github.com/login/oauth/access_token` at the suggested `interval` until it receives an `access_token`.
-7. Token is written to keychain under service `headroom`, account `copilot.token`.
+The Copilot onboarding card shows the PAT form directly (no magic button). The user creates a **fine-grained** personal access token at `github.com/settings/personal-access-tokens/new` with `Account → Plan → Read-only`, pastes it plus their GitHub username and plan tier, and Headroom stores all three in the keychain. The form includes a one-click "Create one on GitHub →" button that opens the token page.
 
-The `CLIENT_ID` is hardcoded in the binary — GitHub device flow does not use a client secret, so this is safe.
-
-### Copilot — fallback: paste a PAT
-
-The "Advanced" panel accepts a fine-grained personal access token. Instructions point at `github.com/settings/tokens?type=beta` with the exact permission scope to enable (`Account → Plan → Read-only`).
+**Why not OAuth?** Classic OAuth scopes don't grant access to the per-user billing endpoint we call (`/users/{u}/settings/billing/premium_request/usage`). The endpoint accepts fine-grained PATs with `Plan: Read-only` or GitHub App tokens with the equivalent permission — and shipping a GitHub App just for this one HTTP call would add maintainer/phishing surface without changing the end-user step count meaningfully.
 
 ---
 
@@ -197,13 +187,13 @@ Thin wrapper around the `keyring` crate. All values stored under service name `h
 
 The renderer writes these via IPC commands (the onboarding flow calls them; the renderer never touches the keychain directly):
 
-| Command | Effect |
-| ------- | ------ |
-| `set_claude_session(session_key)` | Writes `claude.session` |
-| `set_copilot_token(token)` | Writes `copilot.token` |
-| `set_copilot_username(username)` | Writes `copilot.username` |
-| `set_copilot_plan(plan)` | Validates `plan` against the recognized tiers, then writes `copilot.plan` |
-| `clear_credentials(service)` | Deletes every key under the `claude` or `copilot` prefix |
+| Command                           | Effect                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `set_claude_session(session_key)` | Writes `claude.session`                                                   |
+| `set_copilot_token(token)`        | Writes `copilot.token`                                                    |
+| `set_copilot_username(username)`  | Writes `copilot.username`                                                 |
+| `set_copilot_plan(plan)`          | Validates `plan` against the recognized tiers, then writes `copilot.plan` |
+| `clear_credentials(service)`      | Deletes every key under the `claude` or `copilot` prefix                  |
 
 ### `commands`
 
@@ -276,12 +266,12 @@ Two configurable thresholds drive local desktop notifications: a **warning** (or
 
 ## Storage
 
-| What                | Where                                      | Format    | Status      |
-| ------------------- | ------------------------------------------ | --------- | ----------- |
-| Credentials         | OS keychain (service `headroom`)           | string    | implemented |
-| User preferences    | `dirs::config_dir()/headroom/settings.json`| JSON      | implemented |
-| Cached snapshots    | in-memory only (`last_snapshot`)           | n/a       | implemented |
-| Usage history       | `dirs::data_dir()/headroom/history.jsonl`  | JSONL     | implemented |
+| What             | Where                                       | Format | Status      |
+| ---------------- | ------------------------------------------- | ------ | ----------- |
+| Credentials      | OS keychain (service `headroom`)            | string | implemented |
+| User preferences | `dirs::config_dir()/headroom/settings.json` | JSON   | implemented |
+| Cached snapshots | in-memory only (`last_snapshot`)            | n/a    | implemented |
+| Usage history    | `dirs::data_dir()/headroom/history.jsonl`   | JSONL  | implemented |
 
 **Settings** (`settings.json`, written atomically and clamped on load): `poll_interval_secs`, `theme` (`auto`/`light`/`dark`), `show_tray_percentage`, `notify_warn_pct` (orange, 0 = off), `notify_crit_pct` (red, 0 = off), `show_claude_design`. Launch-at-login is managed by `tauri-plugin-autostart`, not stored here. Saving settings emits `settings-updated` so open windows react live (theme, Claude Design toggle).
 
