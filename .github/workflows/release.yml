@@ -96,7 +96,10 @@ jobs:
 
   publish:
     name: Publish release
-    needs: build
+    # Needs `create-release` too, otherwise `needs.create-release.outputs.release_id`
+    # renders as empty in the script body and the github-script step crashes with
+    # `SyntaxError: Unexpected token ','` (seen on the v1.0.0 tag).
+    needs: [create-release, build]
     runs-on: ubuntu-latest
     steps:
       - name: Publish
