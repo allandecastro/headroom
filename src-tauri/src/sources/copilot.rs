@@ -120,17 +120,14 @@ impl CopilotSource {
             name: "GitHub Copilot".into(),
             plan: plan_label.to_string(),
             state: ServiceState::Active,
-            quotas: vec![Quota {
-                window: QuotaWindow::Monthly,
-                label: "Monthly".into(),
+            quotas: vec![Quota::new(
+                QuotaWindow::Monthly,
+                "Monthly",
                 used,
                 total,
-                unit: QuotaUnit::Requests,
+                QuotaUnit::Requests,
                 resets_at,
-                advice: None,
-                projection: None,
-                sparkline: vec![],
-            }],
+            )],
             error_detail: None,
         })
     }

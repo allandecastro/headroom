@@ -46,3 +46,8 @@ coverage/
 .claude/
 .cache/
 __pycache__/
+
+# Scratch / local-only
+TODO.MD
+TODO.md
+*.tmp.json    # settings atomic-save intermediates

@@ -66,6 +66,38 @@ pub struct Quota {
     pub sparkline: Vec<f64>,
 }
 
+impl Quota {
+    /// Build a quota with derived fields defaulted — sources only specify the
+    /// measurement; `projection`, `sparkline`, and `advice` are filled later.
+    pub fn new(
+        window: QuotaWindow,
+        label: impl Into<String>,
+        used: f64,
+        total: f64,
+        unit: QuotaUnit,
+        resets_at: DateTime<Utc>,
+    ) -> Self {
+        Self {
+            window,
+            label: label.into(),
+            used,
+            total,
+            unit,
+            resets_at,
+            advice: None,
+            projection: None,
+            sparkline: vec![],
+        }
+    }
+
+    /// Attach a plan-specific recommendation (e.g. "use Sonnet for the rest of
+    /// the week" on a critical Opus quota).
+    pub fn with_advice(mut self, advice: impl Into<String>) -> Self {
+        self.advice = Some(advice.into());
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ServiceStatus {
     pub id: String,
