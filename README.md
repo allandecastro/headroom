@@ -189,6 +189,8 @@ brew install librsvg
 - [ROADMAP.md](ROADMAP.md) — phased delivery plan
 - [CHANGELOG.md](CHANGELOG.md) — release history
 - [CONTRIBUTING.md](CONTRIBUTING.md) — code style, PR process
+- [FAQ.md](FAQ.md) — common questions about setup, privacy, troubleshooting
+- [SECURITY.md](SECURITY.md) — security policy + how to report a vulnerability
 
 ---
 
@@ -204,6 +206,11 @@ Headroom's contribution is combining both services in one native menu bar app, w
 
 ---
 
-## License
+<p align="center">
+  <sub>Crafted with <span aria-label="love">❤️</span> and AI by
+  <a href="https://github.com/allandecastro">Allan De Castro</a></sub>
+</p>
 
-MIT — see [LICENSE](LICENSE).
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="License: MIT" /></a>
+</p>
