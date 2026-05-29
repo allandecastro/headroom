@@ -95,6 +95,33 @@ impl History {
         Some(sample)
     }
 
+    /// Δutilization over the last `lookback_secs` for a series, as
+    /// `(used_pct_delta, elapsed_secs)`. Returns `None` when there aren't
+    /// enough samples in the window or the window straddled a reset (delta
+    /// would go negative).
+    pub fn recent_delta(
+        &self,
+        service: &str,
+        window: QuotaWindow,
+        now: i64,
+        lookback_secs: i64,
+    ) -> Option<(f64, i64)> {
+        let series = self.series.get(&series_key(service, window))?;
+        let since = now - lookback_secs;
+        let mut in_window = series.iter().filter(|s| s.ts >= since);
+        let first = in_window.next()?;
+        let last = series.last()?;
+        let dt = last.ts - first.ts;
+        if dt <= 0 {
+            return None;
+        }
+        let delta = last.used_pct - first.used_pct;
+        if delta < 0.0 {
+            return None; // window reset mid-lookback — delta is meaningless
+        }
+        Some((delta, dt))
+    }
+
     /// Downsampled utilization series within the current window, for a sparkline.
     pub fn sparkline(&self, service: &str, window: QuotaWindow, now: i64) -> Vec<f64> {
         let Some(series) = self.series.get(&series_key(service, window)) else {
@@ -224,5 +251,43 @@ mod tests {
     fn downsample_passes_through_when_small() {
         let pts = vec![1.0, 2.0, 3.0];
         assert_eq!(downsample(&pts, 24), pts);
+    }
+
+    #[test]
+    fn recent_delta_returns_delta_and_span_within_lookback() {
+        let mut h = History::default();
+        let t0 = 1_000_000;
+        // Series: 10% (24h ago), 15% (12h ago), 22% (now). Lookback 24h covers all three.
+        h.record("c", QuotaWindow::WeeklyAll, 10.0, t0);
+        h.record("c", QuotaWindow::WeeklyAll, 15.0, t0 + 12 * 3600);
+        h.record("c", QuotaWindow::WeeklyAll, 22.0, t0 + 24 * 3600);
+        let (delta, span) = h
+            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 24 * 3600, 24 * 3600)
+            .unwrap();
+        assert!((delta - 12.0).abs() < 0.01);
+        assert_eq!(span, 24 * 3600);
+    }
+
+    #[test]
+    fn recent_delta_returns_none_after_window_reset() {
+        let mut h = History::default();
+        let t0 = 1_000_000;
+        h.record("c", QuotaWindow::WeeklyAll, 80.0, t0);
+        // Big drop = window reset; delta would be negative.
+        h.record("c", QuotaWindow::WeeklyAll, 5.0, t0 + 12 * 3600);
+        assert!(h
+            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 12 * 3600, 24 * 3600)
+            .is_none());
+    }
+
+    #[test]
+    fn recent_delta_needs_at_least_two_in_window() {
+        let mut h = History::default();
+        let t0 = 1_000_000;
+        h.record("c", QuotaWindow::WeeklyAll, 10.0, t0);
+        // Only one sample in the 1h lookback.
+        assert!(h
+            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 30 * 60, 3600)
+            .is_none());
     }
 }

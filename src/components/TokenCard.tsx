@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { ServiceStatus, Quota } from '../lib/api';
+import type { Pace, ServiceStatus, Quota } from '../lib/api';
 import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
 
 interface Props {
@@ -144,6 +144,7 @@ function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; 
             ((quota.sparkline?.length ?? 0) >= 2 ? (
               <ExpandedChart
                 points={quota.sparkline!}
+                pace={quota.pace}
                 colorClass={state === 'ok' ? 'text-fg-tertiary' : stateClasses.text}
               />
             ) : (
@@ -167,8 +168,17 @@ function formatNumber(value: number, unit: string): string {
 }
 
 // Larger, readable trend chart shown inline when a quota row is expanded.
-// Stretches to the parent's width and shows min / now / max under the line.
-function ExpandedChart({ points, colorClass }: { points: number[]; colorClass: string }) {
+// Stretches to the parent's width and shows min / now / max under the line,
+// plus the optional recent-burn-rate pace.
+function ExpandedChart({
+  points,
+  pace,
+  colorClass,
+}: {
+  points: number[];
+  pace?: Pace;
+  colorClass: string;
+}) {
   const W = 300;
   const H = 60;
   const n = points.length;
@@ -187,6 +197,18 @@ function ExpandedChart({ points, colorClass }: { points: number[]; colorClass: s
 
   return (
     <div className="mt-1.5 rounded-[6px] bg-black/[0.03] px-2 py-2 dark:bg-white/[0.04]">
+      {pace && (
+        <div
+          className={`mb-1.5 text-[10.5px] tabular-nums ${
+            pace.over_pace ? 'text-state-warn-text-dark' : 'text-fg-tertiary'
+          }`}
+        >
+          Burning {Math.round(pace.daily_rate)}%/day
+          {pace.over_pace
+            ? ` — over the ${Math.round(pace.safe_pace)}%/day safe pace`
+            : ` · ${Math.round(pace.safe_pace)}%/day keeps you on track`}
+        </div>
+      )}
       <div className={colorClass}>
         <svg
           width="100%"

@@ -64,6 +64,10 @@ pub struct Quota {
     /// orchestrator from persisted history (sources leave it empty).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub sparkline: Vec<f64>,
+    /// Recent-burn-rate pace, filled in by the orchestrator from the last ~24h
+    /// of persisted history (sources leave it `None`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pace: Option<crate::projection::Pace>,
 }
 
 impl Quota {
@@ -87,6 +91,7 @@ impl Quota {
             advice: None,
             projection: None,
             sparkline: vec![],
+            pace: None,
         }
     }
 

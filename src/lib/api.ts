@@ -18,6 +18,12 @@ export interface Projection {
   eta?: string; // ISO 8601 — when it's projected to hit 100%, if before reset
 }
 
+export interface Pace {
+  daily_rate: number; // %/day burned over the recent ~24h lookback
+  safe_pace: number; // max %/day that lands at 100% exactly at reset
+  over_pace: boolean;
+}
+
 export interface Quota {
   window: QuotaWindow;
   label: string;
@@ -28,6 +34,7 @@ export interface Quota {
   advice?: string;
   projection?: Projection;
   sparkline?: number[]; // downsampled recent utilization for a sparkline
+  pace?: Pace; // recent-burn-rate pace, only for long windows
 }
 
 export interface ServiceStatus {

@@ -8,9 +8,22 @@ use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
 
 use crate::notifications::notify_thresholds;
-use crate::sources::{ServiceState, ServiceStatus, SourceError};
+use crate::sources::{QuotaWindow, ServiceState, ServiceStatus, SourceError};
 use crate::tray;
 use crate::{AppState, Snapshot};
+
+/// Long windows where a 24h sample delta is a meaningful pace signal.
+/// FiveHour is intentionally excluded — the lookback would dwarf the window.
+fn is_long_window(w: QuotaWindow) -> bool {
+    matches!(
+        w,
+        QuotaWindow::WeeklyAll
+            | QuotaWindow::WeeklySonnet
+            | QuotaWindow::WeeklyOpus
+            | QuotaWindow::ClaudeDesign
+            | QuotaWindow::Monthly
+    )
+}
 
 /// Per-source fetch budget. A source that exceeds it is shown as unreachable.
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
@@ -64,6 +77,21 @@ pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
                         to_persist.push(sample);
                     }
                     quota.sparkline = history.sparkline(&id, quota.window, now_secs);
+                    // Recent-burn-rate pace, only for the long (weekly/monthly)
+                    // windows where a 24h delta is meaningful.
+                    if is_long_window(quota.window) {
+                        if let Some((delta_pct, delta_secs)) =
+                            history.recent_delta(&id, quota.window, now_secs, 24 * 3600)
+                        {
+                            quota.pace = crate::projection::pace(
+                                used_pct,
+                                quota.resets_at,
+                                now,
+                                delta_pct,
+                                delta_secs,
+                            );
+                        }
+                    }
                 }
             }
         }
