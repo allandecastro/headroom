@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { DeviceCode, CopilotPlan } from '../../lib/ipc';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
@@ -21,6 +22,18 @@ const PLAN_OPTIONS: { value: CopilotPlan; label: string }[] = [
 // Shown directly under the Copilot "Sign in with GitHub" button while the
 // device flow is in progress (and after).
 export function CopilotSigninPanel({ device, status, error, plan, onPlanChange, onOpen }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  function copyCode() {
+    navigator.clipboard
+      .writeText(device.user_code)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(console.error);
+  }
+
   return (
     <div className="my-2 rounded-[6px] border-hairline border-emphasis bg-black/[0.03] px-3 py-2.5 text-[12px] dark:bg-white/[0.04]">
       {status === 'pending' && (
@@ -30,13 +43,22 @@ export function CopilotSigninPanel({ device, status, error, plan, onPlanChange, 
             <span className="font-mono text-[18px] tracking-[0.15em] text-fg-primary">
               {device.user_code}
             </span>
-            <button
-              type="button"
-              onClick={onOpen}
-              className="text-[11px] text-fg-secondary underline hover:text-fg-primary"
-            >
-              Open GitHub
-            </button>
+            <div className="flex items-center gap-3 text-[11px]">
+              <button
+                type="button"
+                onClick={copyCode}
+                className="text-fg-secondary underline hover:text-fg-primary"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <button
+                type="button"
+                onClick={onOpen}
+                className="text-fg-secondary underline hover:text-fg-primary"
+              >
+                Open GitHub
+              </button>
+            </div>
           </div>
           <div className="text-[10.5px] text-fg-tertiary">Waiting for authorization…</div>
         </>
