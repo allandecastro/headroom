@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ServiceStatus, Quota } from '../lib/api';
 import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
@@ -40,13 +41,21 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
   }
 
   if (service.state === 'unreachable' || service.state === 'auth_required') {
+    const summary =
+      service.state === 'auth_required'
+        ? 'Sign in again'
+        : `Couldn't fetch usage${shortHttpStatus(service.error_detail) ? ` · ${shortHttpStatus(service.error_detail)}` : ''}`;
     return (
       <section className="py-2">
         {header}
-        <div className="text-2xs italic text-fg-quaternary">
-          {service.state === 'auth_required'
-            ? 'Sign in again'
-            : (service.error_detail ?? 'Unreachable')}
+        <div
+          className="text-2xs italic text-fg-quaternary"
+          title={service.error_detail ?? undefined}
+        >
+          {summary}
+        </div>
+        <div className="mt-0.5 text-2xs text-fg-quaternary">
+          Try “Set up accounts…” → Re-auth, or paste a token under Advanced.
         </div>
       </section>
     );
@@ -65,6 +74,7 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
 }
 
 function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; critPct: number }) {
+  const [expanded, setExpanded] = useState(false);
   const pct = Math.round((quota.used / quota.total) * 100);
   // A threshold of 0 is "off" — that level never colours the row, matching the
   // tray's compute_state in src-tauri/src/tray.rs.
@@ -103,30 +113,45 @@ function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; 
         {formatResetTime(quota.resets_at)}
       </div>
       {(quota.projection || (quota.sparkline?.length ?? 0) >= 2) && (
-        <div className="mt-1 flex items-center gap-2">
-          {(quota.sparkline?.length ?? 0) >= 2 ? (
-            <span className={state === 'ok' ? 'text-fg-tertiary' : stateClasses.text}>
-              <Sparkline points={quota.sparkline!} />
+        <>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Hide trend chart' : 'Show trend chart'}
+            className="mt-1 flex w-full items-center gap-2 text-left hover:opacity-80"
+          >
+            {quota.projection ? (
+              <span
+                className={`flex-1 text-2xs ${
+                  quota.projection.will_exceed ? 'text-state-warn-text-dark' : 'text-fg-tertiary'
+                }`}
+              >
+                {quota.projection.will_exceed
+                  ? `On track to exceed · ~${Math.round(quota.projection.projected_pct)}% by reset${
+                      quota.projection.eta ? ` · full ${relativeFromNow(quota.projection.eta)}` : ''
+                    }`
+                  : `On track · ~${Math.round(quota.projection.projected_pct)}% by reset`}
+              </span>
+            ) : (
+              <span className="flex-1 text-2xs text-fg-tertiary">Recent trend</span>
+            )}
+            <span className="text-[10px] text-fg-quaternary" aria-hidden>
+              {expanded ? '▴' : '▾'}
             </span>
-          ) : (
-            quota.projection && (
-              <span className="text-2xs italic text-fg-quaternary">collecting…</span>
-            )
-          )}
-          {quota.projection && (
-            <span
-              className={`text-2xs ${
-                quota.projection.will_exceed ? 'text-state-warn-text-dark' : 'text-fg-tertiary'
-              }`}
-            >
-              {quota.projection.will_exceed
-                ? `On track to exceed · ~${Math.round(quota.projection.projected_pct)}% by reset${
-                    quota.projection.eta ? ` · full ${relativeFromNow(quota.projection.eta)}` : ''
-                  }`
-                : `On track · ~${Math.round(quota.projection.projected_pct)}% by reset`}
-            </span>
-          )}
-        </div>
+          </button>
+          {expanded &&
+            ((quota.sparkline?.length ?? 0) >= 2 ? (
+              <ExpandedChart
+                points={quota.sparkline!}
+                colorClass={state === 'ok' ? 'text-fg-tertiary' : stateClasses.text}
+              />
+            ) : (
+              <div className="mt-1.5 rounded-[6px] bg-black/[0.03] px-3 py-2 text-2xs italic text-fg-quaternary dark:bg-white/[0.04]">
+                collecting trend… one sample every ~5 minutes
+              </div>
+            ))}
+        </>
       )}
       {state === 'crit' && quota.advice && (
         <div className={`text-2xs mt-0.5 ${stateClasses.text}`}>{quota.advice}</div>
@@ -141,10 +166,11 @@ function formatNumber(value: number, unit: string): string {
   return value.toLocaleString('en-US');
 }
 
-// Tiny inline sparkline of recent utilization (0–100%), inheriting currentColor.
-function Sparkline({ points }: { points: number[] }) {
-  const W = 48;
-  const H = 12;
+// Larger, readable trend chart shown inline when a quota row is expanded.
+// Stretches to the parent's width and shows min / now / max under the line.
+function ExpandedChart({ points, colorClass }: { points: number[]; colorClass: string }) {
+  const W = 300;
+  const H = 60;
   const n = points.length;
   const coords = points
     .map((p, i) => {
@@ -153,18 +179,58 @@ function Sparkline({ points }: { points: number[] }) {
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(' ');
+  // ExpandedChart is only rendered when `points.length >= 2`, so `current` is
+  // guaranteed defined — the assertion silences noUncheckedIndexedAccess.
+  const current = points[points.length - 1]!;
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block">
-      <polyline
-        points={coords}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
+    <div className="mt-1.5 rounded-[6px] bg-black/[0.03] px-2 py-2 dark:bg-white/[0.04]">
+      <div className={colorClass}>
+        <svg
+          width="100%"
+          height={H}
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          aria-hidden
+          className="block"
+        >
+          {/* 100% reference line at the top of the area. */}
+          <line
+            x1="0"
+            y1="0.5"
+            x2={W}
+            y2="0.5"
+            stroke="currentColor"
+            strokeWidth="0.5"
+            strokeOpacity="0.25"
+            strokeDasharray="3 3"
+          />
+          <polyline
+            points={coords}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] tabular-nums text-fg-quaternary">
+        <span>min {Math.round(min)}%</span>
+        <span>now {Math.round(current)}%</span>
+        <span>max {Math.round(max)}%</span>
+      </div>
+    </div>
   );
+}
+
+// "HTTP 404: {body}" → "HTTP 404"; keeps the long body for the tooltip.
+function shortHttpStatus(detail?: string): string | null {
+  if (!detail) return null;
+  const m = detail.match(/^HTTP\s+(\d{3})/i);
+  return m ? `HTTP ${m[1]}` : null;
 }
 
 function relativeFromNow(iso: string): string {

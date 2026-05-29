@@ -87,6 +87,20 @@ function ConnectedPill() {
   );
 }
 
+// Credentials stored but the source is failing — still "connected", just
+// couldn't fetch.
+function ProblemPill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] text-state-warn-text-dark">
+      <span
+        aria-hidden
+        className="inline-block h-[5px] w-[5px] flex-shrink-0 rounded-full bg-state-warn-fill-dark"
+      />
+      {label}
+    </span>
+  );
+}
+
 // ─── Service row ─────────────────────────────────────────────────────────────
 
 interface ServiceRowProps {
@@ -98,25 +112,31 @@ interface ServiceRowProps {
 }
 
 function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: ServiceRowProps) {
-  const connected = svc?.state === 'active';
+  const state = svc?.state;
   const displayName = svc ? (svc.plan ? `${svc.name} · ${svc.plan}` : svc.name) : staticName;
 
-  const detailText = connected ? (svc?.error_detail ?? '') : 'Not connected';
+  // Three distinct states: connected & healthy, connected but failing, no creds.
+  const statusEl =
+    state === 'active' ? (
+      <ConnectedPill />
+    ) : state === 'unreachable' ? (
+      <ProblemPill label="Connected · couldn't fetch usage" />
+    ) : state === 'auth_required' ? (
+      <ProblemPill label="Connected · sign in again" />
+    ) : (
+      <span>Not connected</span>
+    );
 
   return (
     <div className="flex items-center gap-2.5 py-2">
       <span className="text-fg-secondary">{icon}</span>
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-[12px] text-fg-primary">{displayName}</span>
-        <span className="text-[10px] text-fg-tertiary flex items-center gap-1">
-          {connected ? (
-            <>
-              <ConnectedPill />
-              {detailText && <span>· {detailText}</span>}
-            </>
-          ) : (
-            <span>Not connected</span>
-          )}
+        <span
+          className="text-[10px] text-fg-tertiary flex items-center gap-1"
+          title={svc?.error_detail ?? undefined}
+        >
+          {statusEl}
         </span>
       </div>
       <div className="flex gap-1.5">
