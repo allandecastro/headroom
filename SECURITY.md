@@ -6,7 +6,7 @@ If you find a security issue in Headroom, **please don't open a public issue.** 
 
 1. Open a **private security advisory** at [github.com/allandecastro/headroom/security/advisories/new](https://github.com/allandecastro/headroom/security/advisories/new).
 2. Include: what the issue is, how to reproduce it, what an attacker could do, and (if you have one) a suggested fix.
-3. You'll get an acknowledgement within ~72 hours.
+3. I'll acknowledge as soon as I can — best-effort, no committed SLA. Headroom is maintained solo, so please be patient.
 
 If GitHub's private advisory flow isn't available to you, fall back to emailing the address listed on [@allandecastro](https://github.com/allandecastro)'s GitHub profile.
 

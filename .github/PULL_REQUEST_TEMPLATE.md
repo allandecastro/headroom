@@ -1,4 +1,16 @@
-<!-- Thanks for the PR! A few questions to make review faster. -->
+<!--
+  Thanks for the PR!
+
+  Title follows Conventional Commits:
+    feat: …      new feature
+    fix: …       bug fix
+    docs: …      documentation only
+    refactor: …  code change that's neither a feature nor a bug fix
+    test: …      adding or refining tests
+    chore: …     tooling / build / housekeeping
+
+  A few questions below to make review faster.
+-->
 
 ## Why
 
@@ -15,8 +27,8 @@
 - [ ] No spec changes
 - [ ] SPEC.md updated
 - [ ] DESIGN_SYSTEM.md updated
-- [ ] ROADMAP.md updated
-- [ ] AGENTS.md updated
+- [ ] FAQ.md updated
+- [ ] CHANGELOG.md updated
 
 ## Verification
 
@@ -25,8 +37,8 @@
 - [ ] `npm run lint` passes
 - [ ] `npm run typecheck` passes
 - [ ] `cargo fmt --check` passes
-- [ ] `cargo clippy -- -D warnings` passes
-- [ ] `cargo test` passes
+- [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
+- [ ] `cargo test --all-features` passes
 - [ ] Tested manually on: macOS / Windows / Linux (cross out non-applicable)
 
 ## Screenshots / video

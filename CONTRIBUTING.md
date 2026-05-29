@@ -71,7 +71,7 @@ The architecture is designed to make this a self-contained change.
 3. Add a row to the onboarding flow in `src/components/OnboardingFlow.tsx`.
 4. Add the service's icon to `assets/services/<service>.svg`.
 5. Document the data source in [SPEC.md](SPEC.md#data-sources).
-6. Update the [ROADMAP.md](ROADMAP.md) Phase 4 checklist.
+6. Add a [CHANGELOG.md](CHANGELOG.md) entry under `[Unreleased] → Added`.
 
 Tests should cover at minimum: a successful fetch with a recorded response, an auth failure, and a network timeout.
 

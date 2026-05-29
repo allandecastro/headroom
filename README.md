@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/allandecastro/headroom/actions/workflows/ci.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/allandecastro/headroom/actions/workflows/release.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/release.yml/badge.svg" alt="CD" /></a>
@@ -32,8 +32,7 @@
   <a href="#features">Features</a> &bull;
   <a href="#install">Install</a> &bull;
   <a href="#development">Development</a> &bull;
-  <a href="#documentation">Documentation</a> &bull;
-  <a href="#license">License</a>
+  <a href="#documentation">Documentation</a>
 </p>
 
 ---
@@ -77,7 +76,7 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Status
 
-**v0.1.0** — first tagged release. The data acquisition strategies for both Claude and Copilot run live against the official endpoints; credentials are persisted; both magic sign-in paths are shipped alongside the paste fallbacks. See [ROADMAP.md](ROADMAP.md) for what's coming next.
+**v1.0.0** — first public release. The data acquisition strategies for both Claude and Copilot run live against the official endpoints; credentials are persisted in the OS keychain; the burndown + sparkline + recent-burn-rate pace ship in the popover; notifications, autostart, single-instance lock, configurable thresholds, and the click-to-expand chart are all in. See [CHANGELOG.md](CHANGELOG.md) for the full release notes and [FAQ.md § Scope](FAQ.md#scope) for what is and isn't on the table next.
 
 ---
 
@@ -115,41 +114,42 @@ The first launch will be slow — Cargo compiles every Rust dependency on the co
 ```
 headroom/
 ├── src/                    # React popover + settings UI
-│   ├── components/         # TokenCard, SettingsPanel, OnboardingFlow, etc.
-│   ├── lib/                # Tauri IPC wrappers, formatters
-│   ├── App.tsx
+│   ├── components/         # TokenCard, onboarding, shared UI primitives
+│   ├── lib/                # Tauri IPC wrappers, formatters, useFitWindow
+│   ├── App.tsx             # Popover
+│   ├── SettingsPanel.tsx   # Settings window
+│   ├── OnboardingFlow.tsx  # Onboarding window
 │   └── main.tsx
 ├── src-tauri/              # Rust backend
 │   ├── src/
 │   │   ├── sources/        # QuotaSource trait + claude.rs, copilot.rs
 │   │   ├── commands.rs     # Tauri IPC handlers exposed to the renderer
 │   │   ├── credentials.rs  # OS keychain wrapper
-│   │   ├── gh_device.rs    # GitHub OAuth device-flow client
 │   │   ├── history.rs      # Persisted per-quota usage time series
 │   │   ├── notifications.rs# Threshold-crossing desktop alerts
 │   │   ├── orchestrator.rs # Poll loop + classification
-│   │   ├── projection.rs   # Burndown projection (pure)
+│   │   ├── projection.rs   # Burndown projection + recent-burn-rate pace
 │   │   ├── settings.rs     # User preferences, atomic JSON persist
 │   │   ├── tray.rs         # Tray icon state machine
 │   │   ├── lib.rs          # AppState + run() wiring
 │   │   └── main.rs
 │   ├── Cargo.toml
 │   └── tauri.conf.json
-├── docs/                   # Design references, mockups, spec extras
-└── .github/workflows/      # CI + release pipelines
+├── docs/                   # Mockups + screenshots used in this README
+└── .github/                # Issue / PR templates + CI + release workflows
 ```
 
 ### Useful commands
 
-| Command                        | What it does                                          |
-| ------------------------------ | ----------------------------------------------------- |
-| `npm run dev`                  | Vite dev server (renderer only, no tray)              |
-| `npm run tauri dev`            | Full app with hot-reload on both Rust and React sides |
-| `npm run lint`                 | ESLint + Prettier on the renderer                     |
-| `npm run typecheck`            | TypeScript without emit                               |
-| `cd src-tauri && cargo clippy` | Rust linter                                           |
-| `cd src-tauri && cargo test`   | Rust unit + integration tests                         |
-| `npm run tauri build`          | Production build for the current host platform        |
+| Command                                                                    | What it does                                          |
+| -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `npm run dev`                                                              | Vite dev server (renderer only, no tray)              |
+| `npm run tauri dev`                                                        | Full app with hot-reload on both Rust and React sides |
+| `npm run lint`                                                             | ESLint + Prettier on the renderer                     |
+| `npm run typecheck`                                                        | TypeScript without emit                               |
+| `cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings` | Rust linter (matches CI)                              |
+| `cd src-tauri && cargo test --all-features`                                | Rust unit + integration tests (matches CI)            |
+| `npm run tauri build`                                                      | Production build for the current host platform        |
 
 ### Tauri config notes
 
@@ -186,10 +186,9 @@ brew install librsvg
 
 - [SPEC.md](SPEC.md) — architecture, data sources, auth flows
 - [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — colors, typography, components, icons
-- [ROADMAP.md](ROADMAP.md) — phased delivery plan
 - [CHANGELOG.md](CHANGELOG.md) — release history
 - [CONTRIBUTING.md](CONTRIBUTING.md) — code style, PR process
-- [FAQ.md](FAQ.md) — common questions about setup, privacy, troubleshooting
+- [FAQ.md](FAQ.md) — common questions about setup, privacy, scope, troubleshooting
 - [SECURITY.md](SECURITY.md) — security policy + how to report a vulnerability
 
 ---
