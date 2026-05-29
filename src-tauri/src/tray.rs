@@ -217,3 +217,98 @@ impl TrayState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sources::{Quota, QuotaUnit, QuotaWindow};
+
+    fn active(quotas: Vec<Quota>) -> ServiceStatus {
+        ServiceStatus {
+            id: "x".into(),
+            name: "X".into(),
+            plan: String::new(),
+            state: ServiceState::Active,
+            quotas,
+            error_detail: None,
+        }
+    }
+
+    fn quota_at(pct: f64) -> Quota {
+        Quota::new(
+            QuotaWindow::WeeklyAll,
+            "test",
+            pct,
+            100.0,
+            QuotaUnit::Percent,
+            chrono::Utc::now(),
+        )
+    }
+
+    fn snap(services: Vec<ServiceStatus>) -> Snapshot {
+        Snapshot {
+            polled_at: 0,
+            services,
+        }
+    }
+
+    #[test]
+    fn thresholds_drive_warn_and_crit() {
+        assert!(matches!(
+            compute_state(&snap(vec![active(vec![quota_at(85.0)])]), 80, 95),
+            TrayState::Warn
+        ));
+        assert!(matches!(
+            compute_state(&snap(vec![active(vec![quota_at(96.0)])]), 80, 95),
+            TrayState::Crit
+        ));
+        assert!(matches!(
+            compute_state(&snap(vec![active(vec![quota_at(50.0)])]), 80, 95),
+            TrayState::Ok
+        ));
+    }
+
+    #[test]
+    fn threshold_of_zero_disables_that_level() {
+        // crit off: 99% never reaches Crit, but warn still fires at 80.
+        assert!(matches!(
+            compute_state(&snap(vec![active(vec![quota_at(99.0)])]), 80, 0),
+            TrayState::Warn
+        ));
+        // both off: even 99% stays Ok.
+        assert!(matches!(
+            compute_state(&snap(vec![active(vec![quota_at(99.0)])]), 0, 0),
+            TrayState::Ok
+        ));
+    }
+
+    #[test]
+    fn active_service_wins_over_unreachable() {
+        // Claude healthy + Copilot unreachable → tray stays green (not gray).
+        let unreachable = ServiceStatus::unreachable("y", "Y", "boom".into());
+        let healthy = active(vec![quota_at(10.0)]);
+        assert!(matches!(
+            compute_state(&snap(vec![healthy, unreachable]), 80, 95),
+            TrayState::Ok
+        ));
+    }
+
+    #[test]
+    fn worst_quota_across_services_wins() {
+        let svc1 = active(vec![quota_at(50.0)]);
+        let svc2 = active(vec![quota_at(96.0)]);
+        assert!(matches!(
+            compute_state(&snap(vec![svc1, svc2]), 80, 95),
+            TrayState::Crit
+        ));
+    }
+
+    #[test]
+    fn unreachable_only_when_nothing_active() {
+        let unreachable = ServiceStatus::unreachable("z", "Z", "boom".into());
+        assert!(matches!(
+            compute_state(&snap(vec![unreachable]), 80, 95),
+            TrayState::Unreachable
+        ));
+    }
+}

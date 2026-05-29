@@ -8,12 +8,16 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
-## [0.1.0] — 2026-05-28
+## [1.0.0] — 2026-05-29
 
-First tagged release. Headroom now ships a complete picture of your AI coding
+First **public** release. Headroom ships a complete picture of your AI coding
 quotas — Claude (current session, weekly all-models, weekly Sonnet, weekly Opus,
 optional Claude Design) and GitHub Copilot (monthly premium requests) — in the
-system tray, with both magic sign-in paths live.
+system tray, with the burndown projection, sparkline, recent-burn-rate pace,
+threshold notifications, single-instance lock, and autostart all live.
+
+> Renamed from the planned 0.1.0 to 1.0.0 for the first public-share tag — the
+> feature set is well past an MVP.
 
 ### Added
 
@@ -26,15 +30,18 @@ system tray, with both magic sign-in paths live.
 Unreachable`.
 - **"Sign in with Claude"** via an embedded webview that captures the
   `sessionKey` cookie.
-- **"Sign in with GitHub"** via the OAuth device flow — short code → authorize
-  in browser → token captured automatically, username auto-fetched from
-  `GET /user`.
-- **Paste fallbacks** for both services (Claude session key, Copilot PAT +
-  plan).
-- **7-day burndown projection** + popover sparkline with an always-visible
-  _"On track · ~N% by reset"_ line that escalates to _"On track to exceed · full
-  in Xd"_ when pacing past the cap. Usage history is sampled every ~5 minutes,
-  persisted to disk as JSONL, and pruned at 30 days.
+- **Copilot paste-a-PAT onboarding** with a built-in _"Create one on GitHub →"_
+  button that opens the fine-grained PAT page deep-linked to the right scope
+  (the billing endpoint requires a permission classic OAuth scopes can't grant
+  — see SPEC.md and FAQ.md).
+- **Paste fallback** for Claude (session key).
+- **7-day burndown projection** + popover sparkline. Quota rows are
+  click-to-expand: collapsed shows the always-visible _"On track · ~N% by
+  reset"_ line (or _"On track to exceed · full in Xd"_ when pacing past the
+  cap); expanded shows a larger trend chart with min/now/max and the
+  **recent-burn-rate pace** — _"Burning N%/day · M%/day keeps you on track"_,
+  derived from the last 24h of history samples. Usage history is recorded every
+  ~5 minutes, persisted to disk as JSONL, and pruned at 30 days.
 - **Threshold notifications** — configurable orange (heads-up) and red
   (critical) percentage thresholds, fired once per crossing and re-armed on
   drop-back. Critical is forced strictly above heads-up.

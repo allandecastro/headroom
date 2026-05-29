@@ -13,7 +13,7 @@ Technical specification for Headroom v1.
 
 - Multi-account support (one Claude account, one GitHub account per Headroom install).
 - Team/org rollups (Headroom is a personal tool, not a billing dashboard).
-- Cursor / Cody / Codeium integration (see [ROADMAP.md](ROADMAP.md) Phase 4).
+- Cursor / Codex / Gemini / Perplexity integration (planned — open an issue if you'd build the adapter).
 - Notifications beyond local desktop alerts (no Slack/Discord webhooks in v1).
 - Web sync of usage history.
 

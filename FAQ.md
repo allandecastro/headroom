@@ -65,16 +65,21 @@ GitHub doesn't expose them. The only public Copilot billing endpoint reports **m
 
 The grey icon means _all_ services are in an error state (unreachable / auth_required) with nothing active to colour from. If at least one service is healthy, its quota colour drives the tray instead. A grey tray usually means: token expired (re-auth), network blip (will retry), or your laptop just woke from sleep.
 
-## Future
+## Scope
+
+### What Headroom doesn't do (by design)
+
+A few things are intentionally **out of scope** to keep Headroom a focused tray app:
+
+- **No CLI / `headroom status --json`** — Headroom is a tray app; a CLI is a different product. If you need to script against your quotas, read the persisted JSONL at `~/.local/share/headroom/history.jsonl` directly.
+- **No "bring your own API" generic source** — every supported service is a proper adapter with tests, not a configurable JSONPath probe.
+- **No web sync, no accounts, no backend** — local-first; everything lives on your machine.
+- **No team / org rollups** — Headroom is a personal tool. Team billing dashboards are a different product.
 
 ### Will you support Cursor / Codex / Gemini / Perplexity?
 
-Yes — Phase 4 of the [roadmap](ROADMAP.md). Each is a new file under `src-tauri/src/sources/` implementing the `QuotaSource` trait. PRs welcome.
+Yes — that's the natural next direction. Each is a new file under `src-tauri/src/sources/` implementing the `QuotaSource` trait. Follow [open issues](https://github.com/allandecastro/headroom/issues?q=is%3Aissue+label%3Aenhancement) or open one for the service you want most. PRs welcome.
 
 ### Auto-update? Code signing?
 
-Phase 5 of the [roadmap](ROADMAP.md). Code signing has real money attached (~$99/yr Apple, ~$200/yr Windows EV cert), so it'll wait until there are enough non-developer users to justify it.
-
-### Headroom CLI? "Bring your own API" source?
-
-Explicitly **no** — see the _non-goals_ section of the [roadmap](ROADMAP.md). Headroom is a focused tray app, not a Swiss-army knife.
+Planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr. It'll wait until there are enough non-developer users to justify the cost. Until then, manual updates from the [Releases](https://github.com/allandecastro/headroom/releases) page.
