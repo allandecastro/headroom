@@ -29,9 +29,11 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
+            See [CHANGELOG.md](https://github.com/allandecastro/headroom/blob/main/CHANGELOG.md) for the human-written release notes.
+
             **Downloads:**
-            - macOS Apple Silicon: `Headroom_*_aarch64.dmg`
-            - Windows: `Headroom_*_x64-setup.msi`
+            - macOS (Apple Silicon): `Headroom_*_aarch64.dmg`
+            - Windows: `Headroom_*_x64_en-US.msi`
             - Linux AppImage: `Headroom_*_amd64.AppImage`
             - Linux Debian: `headroom_*_amd64.deb`
 
