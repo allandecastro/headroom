@@ -216,22 +216,12 @@ impl UsageResponse {
         for (window, label, entry, is_opus) in windows {
             let Some(w) = entry else { continue };
             let Some(util) = w.utilization else { continue };
-            let advice = if is_opus && util >= 95.0 {
-                Some("use Sonnet for the rest of the week".to_string())
-            } else {
-                None
-            };
-            quotas.push(Quota {
-                window,
-                label: label.into(),
-                used: util,
-                total: 100.0,
-                unit: QuotaUnit::Percent,
-                resets_at: w.resets_at.unwrap_or_else(chrono::Utc::now),
-                advice,
-                projection: None,
-                sparkline: vec![],
-            });
+            let resets_at = w.resets_at.unwrap_or_else(chrono::Utc::now);
+            let mut quota = Quota::new(window, label, util, 100.0, QuotaUnit::Percent, resets_at);
+            if is_opus && util >= 95.0 {
+                quota = quota.with_advice("use Sonnet for the rest of the week");
+            }
+            quotas.push(quota);
         }
 
         ServiceStatus {

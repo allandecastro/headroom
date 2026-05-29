@@ -118,17 +118,14 @@ mod tests {
     use crate::sources::{Quota, QuotaUnit, QuotaWindow, ServiceStatus};
 
     fn quota(used: f64, total: f64) -> Quota {
-        Quota {
-            window: QuotaWindow::FiveHour,
-            label: "Current session".to_string(),
+        Quota::new(
+            QuotaWindow::FiveHour,
+            "Current session",
             used,
             total,
-            unit: QuotaUnit::Percent,
-            resets_at: chrono::Utc::now(),
-            advice: None,
-            projection: None,
-            sparkline: vec![],
-        }
+            QuotaUnit::Percent,
+            chrono::Utc::now(),
+        )
     }
 
     fn service(state: ServiceState, quotas: Vec<Quota>) -> ServiceStatus {
