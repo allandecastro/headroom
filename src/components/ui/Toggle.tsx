@@ -1,6 +1,6 @@
 // Toggle pill — 26×15 px, knob 11×11 px.
 // Off: border-emphasis background. On: ok-fill background.
-// See DESIGN_SYSTEM.md § Toggle and docs/mockups/03-settings.html (.toggle).
+// See DESIGN_SYSTEM.md § Toggle.
 
 interface Props {
   checked: boolean;

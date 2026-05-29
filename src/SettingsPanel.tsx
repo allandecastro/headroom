@@ -1,4 +1,4 @@
-// Settings window. Based on docs/mockups/03-settings.html.
+// Settings window.
 
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';

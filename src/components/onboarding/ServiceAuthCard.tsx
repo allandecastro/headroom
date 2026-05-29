@@ -16,7 +16,6 @@ interface Props {
 }
 
 // One service block in the onboarding picker.
-// See docs/mockups/02-onboarding.html (.svc-card).
 export function ServiceAuthCard({
   icon,
   name,
