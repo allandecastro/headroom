@@ -151,14 +151,16 @@ pub fn update_state(
 /// A threshold of 0 is "off" — that level never colours the tray.
 fn compute_state(snapshot: &Snapshot, warn_pct: u8, crit_pct: u8) -> TrayState {
     let mut worst = TrayState::Ok;
-    let mut any_unreachable = false;
+    let mut any_active = false;
+    let mut any_problem = false;
 
     for service in &snapshot.services {
         match service.state {
-            ServiceState::Unreachable => any_unreachable = true,
+            ServiceState::Unreachable | ServiceState::AuthRequired => any_problem = true,
             // Not connected yet is not an alert condition for the tray icon.
             ServiceState::NeedsSetup => {}
             ServiceState::Active => {
+                any_active = true;
                 for q in &service.quotas {
                     if q.total <= 0.0 {
                         continue;
@@ -174,16 +176,18 @@ fn compute_state(snapshot: &Snapshot, warn_pct: u8, crit_pct: u8) -> TrayState {
                     worst = worst.max(local);
                 }
             }
-            ServiceState::AuthRequired => any_unreachable = true,
         }
     }
 
-    // If everything is unreachable AND nothing is critical, surface unreachable.
-    // If anything was crit/warn, keep that — better to show a real state than mask it.
-    if matches!(worst, TrayState::Ok) && any_unreachable {
+    // As long as ONE service is healthy, surface its state — a failing Copilot
+    // shouldn't gray out the tray when Claude is fine. Only fall back to
+    // unreachable when nothing is active.
+    if any_active {
+        worst
+    } else if any_problem {
         TrayState::Unreachable
     } else {
-        worst
+        TrayState::Ok
     }
 }
 
