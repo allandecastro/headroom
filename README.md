@@ -46,7 +46,19 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Screenshots
 
-_To be added once the first build ships. See [`docs/mockups/`](docs/mockups/) for the design references._
+<p align="center">
+  <img src="docs/screenshots/widget.png" alt="Headroom popover showing live Claude and Copilot quotas" width="320" />
+</p>
+
+<p align="center"><sub>The menu-bar popover — live quotas, reset countdowns, burndown projection.</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/setup.png" alt="Onboarding window" width="360" />
+  &nbsp;
+  <img src="docs/screenshots/settings.png" alt="Settings window" width="360" />
+</p>
+
+<p align="center"><sub>Onboarding &nbsp;·&nbsp; Settings</sub></p>
 
 ---
 
@@ -55,7 +67,7 @@ _To be added once the first build ships. See [`docs/mockups/`](docs/mockups/) fo
 - **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly premium requests, AI Credits after June 1 2026).
 - **Tray icon** colour-coded green / amber / red from the worst quota across services; hover shows the percentage; the tray menu offers Open / Set up accounts / Settings / Quit.
 - **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap.
-- **Magic sign-in for both services** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; _"Sign in with GitHub"_ runs the OAuth device flow (short code → authorize → token). Paste-a-token fallbacks remain for both under _Advanced_.
+- **Magic sign-in for Claude** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; paste-a-session-key fallback under _Advanced_. **Copilot** uses a one-step paste flow with a built-in _"Create one on GitHub →"_ button (the billing endpoint we call requires a fine-grained PAT permission that classic OAuth scopes can't grant — see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
 - **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
@@ -175,8 +187,8 @@ brew install librsvg
 - [SPEC.md](SPEC.md) — architecture, data sources, auth flows
 - [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — colors, typography, components, icons
 - [ROADMAP.md](ROADMAP.md) — phased delivery plan
+- [CHANGELOG.md](CHANGELOG.md) — release history
 - [CONTRIBUTING.md](CONTRIBUTING.md) — code style, PR process
-- [AGENTS.md](AGENTS.md) — guidelines for AI coding assistants working on the project
 
 ---
 
