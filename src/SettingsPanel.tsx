@@ -232,7 +232,10 @@ export default function SettingsPanel() {
   // Autostart is OS-level (not in settings.json), so toggle it directly.
   function toggleAutostart(enabled: boolean) {
     setAutostartState(enabled);
-    setAutostart(enabled).catch(console.error);
+    setAutostart(enabled).catch((err) => {
+      console.error(err);
+      setAutostartState(!enabled);
+    });
   }
 
   // Subscribe to snapshot updates and fetch initial snapshot

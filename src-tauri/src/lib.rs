@@ -125,6 +125,18 @@ pub fn run() {
                 }
             }
 
+            // Refresh stale autostart path on each release-build launch — see #20.
+            #[cfg(not(debug_assertions))]
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let manager = app.autolaunch();
+                if manager.is_enabled().unwrap_or(false) {
+                    if let Err(e) = manager.enable() {
+                        tracing::warn!("autostart self-heal failed: {e}");
+                    }
+                }
+            }
+
             orchestrator::spawn_poll_loop(handle, state.clone());
             Ok(())
         })

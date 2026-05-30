@@ -117,6 +117,14 @@ pub fn get_autostart(app: AppHandle) -> bool {
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
+    // Dev builds would register target\debug\headroom.exe — see #20.
+    if enabled && cfg!(debug_assertions) {
+        return Err(
+            "Launch at startup can only be enabled from an installed Headroom build, \
+             not a dev build."
+                .to_string(),
+        );
+    }
     let manager = app.autolaunch();
     let result = if enabled {
         manager.enable()
