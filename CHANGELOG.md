@@ -8,6 +8,19 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.0.1] — 2026-05-30
+
+### Fixed
+
+- **Launch at startup** silently failing after a Windows reboot when the
+  registry slot pointed at a stale dev-build exe path. Release builds now
+  refresh the registered path on launch (self-heal), and debug builds refuse
+  to write a `target\debug\headroom.exe` path into the registry. The Settings
+  toggle reverts visually when the backend rejects. ([#20], [#21])
+
+[#20]: https://github.com/allandecastro/headroom/issues/20
+[#21]: https://github.com/allandecastro/headroom/pull/21
+
 ## [1.0.0] — 2026-05-29
 
 First **public** release. Headroom ships a complete picture of your AI coding
