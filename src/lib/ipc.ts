@@ -16,6 +16,21 @@ export function setCopilotToken(token: string): Promise<void> {
   return invoke('set_copilot_token', { token });
 }
 
+export interface CopilotSigninStart {
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+}
+
+/**
+ * Begin the GitHub device-flow sign-in for Copilot. Resolves with the code to
+ * display; completion arrives asynchronously via the `copilot-signed-in` event
+ * (or `copilot-signin-error` with a message).
+ */
+export function startCopilotSignin(): Promise<CopilotSigninStart> {
+  return invoke('start_copilot_signin');
+}
+
 /** Clear every credential stored under a service's keychain prefix. */
 export function clearCredentials(service: CredentialService): Promise<void> {
   return invoke('clear_credentials', { service });

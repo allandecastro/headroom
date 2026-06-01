@@ -4,6 +4,7 @@
 
 mod commands;
 mod credentials;
+mod github_signin;
 mod history;
 mod notifications;
 mod orchestrator;
@@ -104,7 +105,8 @@ pub fn run() {
             commands::open_settings,
             commands::get_autostart,
             commands::set_autostart,
-            commands::start_claude_signin
+            commands::start_claude_signin,
+            commands::start_copilot_signin
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
