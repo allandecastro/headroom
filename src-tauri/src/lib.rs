@@ -74,7 +74,11 @@ pub fn run() {
             let state = app.state::<Arc<AppState>>();
             let has_credentials = state.credentials.claude_session().is_some()
                 || state.credentials.copilot_token().is_some();
-            let label = if has_credentials { "popover" } else { "onboarding" };
+            let label = if has_credentials {
+                "popover"
+            } else {
+                "onboarding"
+            };
             if let Some(window) = app.get_webview_window(label) {
                 let _ = window.unminimize();
                 let _ = window.show();
