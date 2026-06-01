@@ -2,9 +2,9 @@ import { useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ClaudePasteForm } from './components/onboarding/ClaudePasteForm';
-import { CopilotPasteForm } from './components/onboarding/CopilotPasteForm';
+import { CopilotAuthCard } from './components/onboarding/CopilotAuthCard';
 import { ServiceAuthCard } from './components/onboarding/ServiceAuthCard';
-import { ClaudeIcon, GitHubIcon } from './components/onboarding/icons';
+import { ClaudeIcon } from './components/onboarding/icons';
 import { Button } from './components/ui/Button';
 import { startClaudeSignin } from './lib/ipc';
 import { useFitWindowHeight } from './lib/useFitWindow';
@@ -42,9 +42,7 @@ export default function OnboardingFlow() {
           <ClaudePasteForm />
         </ServiceAuthCard>
 
-        <ServiceAuthCard icon={<GitHubIcon />} name="GitHub Copilot">
-          <CopilotPasteForm />
-        </ServiceAuthCard>
+        <CopilotAuthCard />
 
         <div className="flex justify-end pt-4">
           <Button variant="primary" onClick={finish}>

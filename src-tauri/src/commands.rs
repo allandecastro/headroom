@@ -186,6 +186,62 @@ pub async fn start_claude_signin(
     Ok(())
 }
 
+/// Device-code details returned to the renderer so it can show the user code
+/// and open the verification page.
+#[derive(serde::Serialize)]
+pub struct CopilotSigninStart {
+    user_code: String,
+    verification_uri: String,
+    expires_in: u64,
+}
+
+/// Begin the GitHub device-flow sign-in for Copilot. Returns the user code +
+/// verification URL immediately, then polls in the background; on success the
+/// token is stored under `copilot.token` and `copilot-signed-in` is emitted
+/// (or `copilot-signin-error` with a message on failure).
+#[tauri::command]
+pub async fn start_copilot_signin(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<CopilotSigninStart, String> {
+    use crate::github_signin::{GithubSignin, GITHUB_CLIENT_ID};
+
+    let signin = GithubSignin::default();
+    let device = signin
+        .request_device_code(GITHUB_CLIENT_ID)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let info = CopilotSigninStart {
+        user_code: device.user_code.clone(),
+        verification_uri: device.verification_uri.clone(),
+        expires_in: device.expires_in,
+    };
+
+    let state = state.inner().clone();
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match signin.poll_for_token(GITHUB_CLIENT_ID, &device).await {
+            Ok(token) => {
+                if let Err(e) = state.credentials.set("copilot.token", &token) {
+                    error!(?e, "failed to store copilot token");
+                    let _ = app_handle.emit("copilot-signin-error", "failed to store token");
+                    return;
+                }
+                let _ = app_handle.emit("copilot-signed-in", ());
+                let snapshot = poll_once(state.clone()).await;
+                let _ = app_handle.emit("tokens-updated", &snapshot);
+            }
+            Err(e) => {
+                warn!(?e, "copilot device-flow sign-in failed");
+                let _ = app_handle.emit("copilot-signin-error", e.to_string());
+            }
+        }
+    });
+
+    Ok(info)
+}
+
 /// Show (and focus) a named window if it exists.
 fn show_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {

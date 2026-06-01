@@ -116,7 +116,7 @@ Under token-based billing the `premium_interactions` quota is the **AI Credits**
 
 Each source supports a primary "magic" path and a fallback paste path. Both paths produce the same artifact (a Bearer token or `sessionKey`) stored in the OS keychain.
 
-> **Current status.** Claude has a magic webview sign-in (`start_claude_signin`) with a paste-session-key fallback under "Advanced". Copilot is a **one-step token paste** — `copilot_internal/user` accepts any GitHub token, so there is no special permission to grant. (This replaced the old billing endpoint, which required a fine-grained PAT with `Account → Plan: Read-only`.)
+> **Current status.** Claude has a magic webview sign-in (`start_claude_signin`) with a paste-session-key fallback under "Advanced". Copilot has a **"Sign in with GitHub" OAuth device flow** (`start_copilot_signin`) with a paste-token fallback under "Advanced". Both work because `copilot_internal/user` accepts a plain GitHub user token (the old billing endpoint required a fine-grained PAT with `Account → Plan: Read-only` that no OAuth scope could grant).
 
 ### Claude — primary: embedded webview
 
@@ -131,11 +131,17 @@ Each source supports a primary "magic" path and a fallback paste path. Both path
 
 For users who can't run a webview (some Linux distros without webkit2gtk, or air-gapped environments), a hidden "Advanced" panel accepts a manually copied `sessionKey` value. Instructions point at DevTools → Application → Cookies → `claude.ai` → `sessionKey`.
 
-### Copilot — paste a GitHub token
+### Copilot — primary: GitHub device flow
 
-The Copilot onboarding card shows a single token field. The user pastes any GitHub personal access token (classic or fine-grained) — no specific permission is required — and Headroom stores it under `copilot.token`. The form includes a one-click "Create one on GitHub →" button that opens `github.com/settings/tokens/new`. The plan tier and quota caps are read from `copilot_internal/user`, so the user no longer supplies a username or plan.
+1. User clicks "Sign in with GitHub" in onboarding.
+2. `start_copilot_signin` POSTs to `github.com/login/device/code` with the public OAuth App `client_id` (device flow needs no secret, so the id ships in the app and is shared by every install) and scope `read:user`.
+3. Headroom shows the returned `user_code` (with a copy button) and opens `verification_uri`; the onboarding window is pinned on top so it isn't lost behind the browser.
+4. The backend polls `github.com/login/oauth/access_token` (`grant_type=…device_code`), honoring `authorization_pending` / `slow_down`, until GitHub mints a user token.
+5. The token is written to the keychain under `copilot.token` and `copilot-signed-in` is emitted (or `copilot-signin-error` with a message). The OAuth App must have **device flow enabled**.
 
-**Why a paste, not OAuth?** `copilot_internal/user` is an internal endpoint, so there's no published OAuth scope to request via a magic sign-in. A pasted token is the simplest path that works today; a device-flow "Sign in with GitHub" could replace it later without changing the endpoint.
+### Copilot — fallback: paste a GitHub token
+
+Under "Advanced", the user can paste any GitHub personal access token (classic or fine-grained) — no specific permission is required — stored under `copilot.token`. The form links to `github.com/settings/tokens/new`. Either way, the plan tier and quota caps come from `copilot_internal/user`, so the user never supplies a username or plan.
 
 ---
 
