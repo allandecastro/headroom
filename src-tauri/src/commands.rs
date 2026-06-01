@@ -70,11 +70,22 @@ pub fn set_copilot_plan(
 
 #[tauri::command]
 pub fn clear_credentials(
+    app: AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     service: String,
 ) -> Result<(), String> {
     for key in credentials::service_keys(&service)? {
         state.credentials.delete(key).map_err(|e| e.to_string())?;
+    }
+    // Claude's session is a webview cookie, not just a keychain entry. Clear the
+    // webview's data so the next sign-in starts from a clean session instead of
+    // silently reusing the old account — see #23.
+    if service == "claude" {
+        if let Some(window) = app.get_webview_window("popover") {
+            if let Err(e) = window.clear_all_browsing_data() {
+                warn!(?e, "failed to clear webview data on sign-out");
+            }
+        }
     }
     Ok(())
 }

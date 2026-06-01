@@ -67,7 +67,15 @@ pub fn run() {
         // Must be the first plugin: a second launch is redirected here to
         // surface the running instance instead of starting a new one.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            if let Some(window) = app.get_webview_window("popover") {
+            // A relaunch means the user wants to interact: surface onboarding
+            // when signed out (so they can reconnect) and the popover otherwise.
+            // Showing the empty popover while signed out looks like nothing
+            // happened — see #23.
+            let state = app.state::<Arc<AppState>>();
+            let has_credentials = state.credentials.claude_session().is_some()
+                || state.credentials.copilot_token().is_some();
+            let label = if has_credentials { "popover" } else { "onboarding" };
+            if let Some(window) = app.get_webview_window(label) {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
