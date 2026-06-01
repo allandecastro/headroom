@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
 import { useFitWindowHeight } from './lib/useFitWindow';
@@ -187,6 +188,7 @@ export default function SettingsPanel() {
   const [settings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [autostart, setAutostartState] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 480);
 
@@ -194,6 +196,7 @@ export default function SettingsPanel() {
   useEffect(() => {
     getSettings().then(setLocalSettings).catch(console.error);
     getAutostart().then(setAutostartState).catch(console.error);
+    getVersion().then(setAppVersion).catch(console.error);
   }, []);
 
   // Autostart is OS-level (not in settings.json), so toggle it directly.
@@ -368,7 +371,7 @@ export default function SettingsPanel() {
         <Group label="About">
           <Row>
             <div className="flex flex-1 flex-col">
-              <span className="text-[12px] text-fg-secondary">Headroom · v1.0.0</span>
+              <span className="text-[12px] text-fg-secondary">Headroom · v{appVersion}</span>
               <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
                 Know your headroom — quota meter for Claude & GitHub Copilot
               </span>

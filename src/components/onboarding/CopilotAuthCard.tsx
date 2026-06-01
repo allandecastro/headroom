@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
 import { startCopilotSignin } from '../../lib/ipc';
 import type { CopilotSigninStart } from '../../lib/ipc';
@@ -8,6 +9,12 @@ import { ServiceAuthCard } from './ServiceAuthCard';
 import { CopilotPasteForm } from './CopilotPasteForm';
 
 type Phase = 'idle' | 'pending' | 'done' | 'error';
+
+// Pin the onboarding window above the browser while the user reads the code —
+// it's skipTaskbar, so otherwise it slips behind the browser and can't be found.
+function pinWindow(on: boolean) {
+  getCurrentWindow().setAlwaysOnTop(on).catch(console.error);
+}
 
 // GitHub Copilot onboarding: primary "Sign in with GitHub" device flow, with
 // the manual token paste kept under "Advanced". The device flow returns a code
@@ -33,20 +40,24 @@ export function CopilotAuthCard() {
   useEffect(() => {
     const unlistenDone = listen('copilot-signed-in', () => {
       setPhase('done');
+      pinWindow(false);
     });
     const unlistenErr = listen<string>('copilot-signin-error', (e) => {
       setError(e.payload);
       setPhase('error');
+      pinWindow(false);
     });
     return () => {
       unlistenDone.then((u) => u());
       unlistenErr.then((u) => u());
+      pinWindow(false);
     };
   }, []);
 
   async function signIn() {
     setPhase('pending');
     setError('');
+    pinWindow(true);
     try {
       const info = await startCopilotSignin();
       setCode(info);
@@ -54,6 +65,7 @@ export function CopilotAuthCard() {
     } catch (e) {
       setError(String(e));
       setPhase('error');
+      pinWindow(false);
     }
   }
 
