@@ -6,6 +6,10 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.1.0] — 2026-06-01
+
 ### Changed
 
 - **Copilot now reads from `copilot_internal/user`** instead of the per-user
