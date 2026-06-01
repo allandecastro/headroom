@@ -1,6 +1,6 @@
 {
   "name": "headroom",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Menu bar quota meter for Claude Code and GitHub Copilot",
