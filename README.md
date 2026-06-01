@@ -12,7 +12,7 @@
   <a href="https://github.com/allandecastro/headroom/releases/latest"><img src="https://img.shields.io/github/v/release/allandecastro/headroom?style=for-the-badge&color=blue&label=release" alt="Latest release" /></a>
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License" />
   <a href="https://github.com/allandecastro/headroom/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/allandecastro/headroom/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/allandecastro/headroom/actions/workflows/release.yml?query=branch%3Amain"><img src="https://github.com/allandecastro/headroom/actions/workflows/release.yml/badge.svg?branch=main" alt="CD" /></a>
+  <a href="https://github.com/allandecastro/headroom/actions/workflows/release.yml"><img src="https://github.com/allandecastro/headroom/actions/workflows/release.yml/badge.svg" alt="CD" /></a>
 </p>
 
 <p align="center">
