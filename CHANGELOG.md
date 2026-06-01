@@ -8,6 +8,23 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.0.2] — 2026-06-01
+
+### Fixed
+
+- **Relaunching while signed out** surfaced nothing usable — the app showed the
+  empty popover instead of onboarding, so reconnecting meant opening the tray
+  menu and clicking "Set up accounts…". A relaunch now routes to onboarding
+  when no account is connected. ([#23], [#24])
+- **Signing in with a different Claude account** was impossible. Sign-out only
+  deleted the keychain entry, leaving the embedded webview's session cookie to
+  silently re-authenticate the previous account on the next sign-in. Sign-out
+  now clears the webview's browsing data so the next sign-in starts fresh.
+  ([#23], [#24])
+
+[#23]: https://github.com/allandecastro/headroom/issues/23
+[#24]: https://github.com/allandecastro/headroom/pull/24
+
 ## [1.0.1] — 2026-05-30
 
 ### Fixed
