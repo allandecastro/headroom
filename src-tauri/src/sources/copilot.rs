@@ -283,7 +283,10 @@ mod tests {
         assert_eq!(q.label, "AI Credits");
         assert_eq!(q.total, 300.0);
         assert_eq!(q.used, 180.0, "used = entitlement - remaining");
-        assert_eq!(q.resets_at, "2026-07-01T00:00:00Z".parse::<DateTime<Utc>>().unwrap());
+        assert_eq!(
+            q.resets_at,
+            "2026-07-01T00:00:00Z".parse::<DateTime<Utc>>().unwrap()
+        );
     }
 
     #[tokio::test]
@@ -322,7 +325,10 @@ mod tests {
 
         assert_eq!(status.plan, "Enterprise");
         assert!(matches!(status.state, ServiceState::Active));
-        assert!(status.quotas.is_empty(), "all-unlimited plan shows no budget row");
+        assert!(
+            status.quotas.is_empty(),
+            "all-unlimited plan shows no budget row"
+        );
     }
 
     #[tokio::test]
