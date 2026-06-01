@@ -27,9 +27,9 @@ Credentials use the same OS keychain that 1Password, VS Code, and GitHub CLI use
 
 ## Setup
 
-### What token does Copilot need?
+### How do I connect Copilot?
 
-Any GitHub personal access token — classic or fine-grained, no specific permission required. Headroom reads your Copilot quota from `copilot_internal/user`, which accepts a plain GitHub token, so there's nothing special to enable. Paste it in the onboarding form (or use the one-click _"Create one on GitHub →"_ button). Earlier versions needed a fine-grained PAT with `Account → Plan: Read-only`; that's no longer the case — a token created before this change keeps working.
+Easiest is **"Sign in with GitHub"** in onboarding: Headroom shows a short code, opens `github.com/login/device`, and stores the token automatically once you authorize — nothing to create or paste. If you prefer, the **Advanced** panel accepts any GitHub personal access token (classic or fine-grained, no specific permission required). Headroom reads your Copilot quota from `copilot_internal/user`, which accepts a plain GitHub token. Earlier versions needed a fine-grained PAT with `Account → Plan: Read-only`; that's no longer the case — a token created before this change keeps working.
 
 ### Where do I find my Copilot plan?
 

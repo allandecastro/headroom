@@ -8,6 +8,25 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.2.0] — 2026-06-01
+
+### Added
+
+- **"Sign in with GitHub" for Copilot** — a one-click OAuth device-flow sign-in:
+  Headroom shows a short code (with a copy button), opens
+  `github.com/login/device`, and stores the token automatically once you
+  authorize. The manual token paste stays available under "Advanced". Now
+  possible because `copilot_internal/user` accepts a plain user token (the old
+  billing endpoint needed a fine-grained PAT no OAuth scope could grant).
+
+### Fixed
+
+- The onboarding window no longer slips behind the browser during GitHub
+  sign-in — it's pinned on top while the device code is shown, so you can read
+  and copy it.
+- The Settings "About" version now reflects the actual app version instead of a
+  hardcoded `v1.0.0`.
+
 ## [1.1.0] — 2026-06-01
 
 ### Changed
