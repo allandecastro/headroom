@@ -6,7 +6,20 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Copilot now reads from `copilot_internal/user`** instead of the per-user
+  billing endpoint. The plan, quota cap, and reset date come straight from the
+  response — supporting GitHub's token-based **AI Credits** model — so caps are
+  no longer hardcoded per tier. The headline quota is AI Credits
+  (`premium_interactions`) when present, falling back to the account's `chat`
+  allowance on free/individual plans.
+- **Copilot onboarding is now a single token paste.** Any GitHub token works —
+  the fine-grained `Account → Plan: Read-only` PAT is no longer required, and
+  the username and plan fields are gone (both are derived from the API). Tokens
+  created under the old flow keep working. The Settings plan picker was removed;
+  the plan is shown read-only from your account. Legacy `copilot.username` /
+  `copilot.plan` keychain entries are cleared on sign-out.
 
 ## [1.0.2] — 2026-06-01
 

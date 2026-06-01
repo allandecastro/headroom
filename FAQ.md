@@ -27,13 +27,13 @@ Credentials use the same OS keychain that 1Password, VS Code, and GitHub CLI use
 
 ## Setup
 
-### Why does Copilot need a Personal Access Token instead of "Sign in with GitHub"?
+### What token does Copilot need?
 
-GitHub's billing endpoint (`/users/{u}/settings/billing/premium_request/usage`) requires a fine-grained permission (`Account → Plan: Read-only`) that classic OAuth scopes can't grant. We tried the OAuth device flow — it works for sign-in but returns 404 on the billing call. Shipping a public GitHub App for one HTTP call would add maintainer + phishing surface for negligible UX gain. So we use the PAT path, just like every other working third-party Copilot widget. The onboarding form has a one-click _"Create one on GitHub →"_ button that takes you straight to the right page.
+Any GitHub personal access token — classic or fine-grained, no specific permission required. Headroom reads your Copilot quota from `copilot_internal/user`, which accepts a plain GitHub token, so there's nothing special to enable. Paste it in the onboarding form (or use the one-click _"Create one on GitHub →"_ button). Earlier versions needed a fine-grained PAT with `Account → Plan: Read-only`; that's no longer the case — a token created before this change keeps working.
 
 ### Where do I find my Copilot plan?
 
-Visit [github.com/settings/copilot](https://github.com/settings/copilot) — your plan (Free / Pro / Pro+ / Business / Enterprise) is shown at the top. If you guessed wrong at onboarding, change it inline at **Settings → Services → Copilot plan** in Headroom — no re-auth needed.
+You don't need to — Headroom reads your plan, quota cap, and reset date straight from your account, so it stays correct even if you change tiers. To see it yourself, visit [github.com/settings/copilot](https://github.com/settings/copilot).
 
 ### Where do I find my Claude session key?
 
@@ -49,9 +49,9 @@ On Windows 11, new tray icons land in the hidden overflow under the `^` chevron 
 
 This happens when running a loose `.exe` launched from a terminal — Windows attributes toast notifications to the launching process's AppUserModelID. The **installed MSI** registers Headroom's own AUMID via the Start Menu shortcut and correctly attributes toasts to "Headroom". Install the MSI from [Releases](https://github.com/allandecastro/headroom/releases) instead of running a development build.
 
-### My Copilot card says "Couldn't fetch usage · HTTP 404".
+### My Copilot card says it couldn't fetch usage.
 
-Almost always means the PAT lacks the right permission. Regenerate it at [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) with **Account → Plan: Read-only** and paste the new one. Use the "Create one on GitHub →" button in the onboarding form — it deep-links to the right page.
+`copilot_internal/user` is an internal GitHub endpoint, so an `HTTP 401/403` means the token was rejected — regenerate one at [github.com/settings/tokens/new](https://github.com/settings/tokens/new) and paste it again. A `404`/other error usually means GitHub changed or restricted the endpoint for your account type; please [open an issue](https://github.com/allandecastro/headroom/issues) with the status code.
 
 ### The trend sparkline says "collecting…".
 
@@ -59,7 +59,7 @@ Headroom records one history sample per quota every ~5 minutes. A fresh install 
 
 ### Why doesn't the popover show daily/hourly Copilot rate limits?
 
-GitHub doesn't expose them. The only public Copilot billing endpoint reports **monthly** totals; the per-session and weekly rate-limit windows GitHub enforces aren't documented numerically and have no API to query. What Headroom _can_ (and does) show is the **recent burn rate** — _"Burning N%/day · M%/day keeps you on track"_ — derived locally from your own history samples. It can't tell you you're throttled right now, but it can tell you you're about to be.
+GitHub doesn't expose them. The Copilot endpoint reports **monthly** quota totals; the per-session and weekly rate-limit windows GitHub enforces aren't documented numerically and have no API to query. What Headroom _can_ (and does) show is the **recent burn rate** — _"Burning N%/day · M%/day keeps you on track"_ — derived locally from your own history samples. It can't tell you you're throttled right now, but it can tell you you're about to be.
 
 ### My tray icon turned grey but I'm not "unreachable".
 

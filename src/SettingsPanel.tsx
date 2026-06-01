@@ -18,9 +18,8 @@ import {
   clearCredentials,
   getAutostart,
   setAutostart,
-  setCopilotPlan,
 } from './lib/ipc';
-import type { CopilotPlan, Settings } from './lib/ipc';
+import type { Settings } from './lib/ipc';
 import type { Snapshot, ServiceStatus } from './lib/api';
 
 // ─── Poll interval options ───────────────────────────────────────────────────
@@ -155,38 +154,6 @@ function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: Service
           Sign out
         </Button>
       </div>
-    </div>
-  );
-}
-
-// ─── Copilot plan picker (only when Copilot is connected) ───────────────────
-
-const COPILOT_PLAN_OPTIONS: { value: CopilotPlan; label: string }[] = [
-  { value: 'free', label: 'Free' },
-  { value: 'pro', label: 'Pro' },
-  { value: 'pro_plus', label: 'Pro+' },
-];
-
-function CopilotPlanRow({ plan: initialPlan }: { plan: CopilotPlan }) {
-  const [plan, setPlan] = useState<CopilotPlan>(initialPlan);
-  // Re-sync if a fresh snapshot brings a different stored plan (e.g. changed
-  // from the onboarding window).
-  useEffect(() => setPlan(initialPlan), [initialPlan]);
-
-  function change(next: CopilotPlan) {
-    setPlan(next);
-    setCopilotPlan(next).catch(console.error);
-  }
-
-  return (
-    <div className="flex items-center gap-2.5 py-1.5 pl-[26px]">
-      <span className="flex-1 text-[11px] text-fg-tertiary">Copilot plan</span>
-      <SegmentedControl
-        ariaLabel="Copilot plan"
-        options={COPILOT_PLAN_OPTIONS}
-        value={plan}
-        onChange={change}
-      />
     </div>
   );
 }
@@ -362,9 +329,6 @@ export default function SettingsPanel() {
               credentialKey="copilot"
               onSignOut={refreshSnapshot}
             />
-            {copilotSvc?.state === 'active' && (
-              <CopilotPlanRow plan={(copilotSvc.plan as CopilotPlan) || 'pro'} />
-            )}
           </div>
         </Group>
 

@@ -4,9 +4,11 @@
 //!
 //! - `claude.session`   — the `sessionKey` cookie value
 //! - `claude.orgId`     — cached Claude organization UUID
-//! - `copilot.token`    — Bearer token (OAuth or PAT)
-//! - `copilot.username` — GitHub username (used in the API path)
-//! - `copilot.plan`     — plan tier: `free` | `pro` | `pro_plus`
+//! - `copilot.token`    — GitHub Bearer token (any classic/OAuth token)
+//!
+//! `copilot.username` / `copilot.plan` are legacy keys from the old billing API;
+//! they're no longer written but stay in [`service_keys`] so sign-out clears
+//! them from upgraded installs.
 
 use keyring::Entry;
 use tracing::warn;
@@ -30,14 +32,6 @@ impl Credentials {
 
     pub fn copilot_token(&self) -> Option<String> {
         get("copilot.token")
-    }
-
-    pub fn copilot_username(&self) -> Option<String> {
-        get("copilot.username")
-    }
-
-    pub fn copilot_plan(&self) -> Option<String> {
-        get("copilot.plan")
     }
 
     pub fn set(&self, key: &str, value: &str) -> anyhow::Result<()> {
@@ -66,17 +60,10 @@ fn get(key: &str) -> Option<String> {
     }
 }
 
-/// Copilot plan tiers accepted by the onboarding flow. Must stay in sync with
-/// the monthly-cap lookup in `sources::copilot`.
-pub const VALID_COPILOT_PLANS: [&str; 3] = ["free", "pro", "pro_plus"];
-
-/// Whether `plan` is a recognized Copilot plan tier.
-pub fn is_valid_copilot_plan(plan: &str) -> bool {
-    VALID_COPILOT_PLANS.contains(&plan)
-}
-
 /// The keychain keys owned by a service, used to clear every credential under
-/// that service's prefix. Returns an error for an unknown service name.
+/// that service's prefix. Returns an error for an unknown service name. The
+/// legacy `copilot.username` / `copilot.plan` keys are listed so sign-out wipes
+/// them from installs created before the `copilot_internal/user` migration.
 pub fn service_keys(service: &str) -> Result<&'static [&'static str], String> {
     match service {
         "claude" => Ok(&["claude.session", "claude.orgId"]),
@@ -88,20 +75,6 @@ pub fn service_keys(service: &str) -> Result<&'static [&'static str], String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn valid_plans_are_accepted() {
-        for plan in ["free", "pro", "pro_plus"] {
-            assert!(is_valid_copilot_plan(plan), "{plan} should be valid");
-        }
-    }
-
-    #[test]
-    fn invalid_plans_are_rejected() {
-        for plan in ["", "Pro", "pro+", "max", "pro_plus_plus", "enterprise"] {
-            assert!(!is_valid_copilot_plan(plan), "{plan} should be rejected");
-        }
-    }
 
     #[test]
     fn service_keys_cover_each_prefix() {

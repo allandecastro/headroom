@@ -63,10 +63,10 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Features
 
-- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly premium requests, AI Credits after June 1 2026).
+- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly AI Credits / premium requests, with the plan and cap read live from your account).
 - **Tray icon** colour-coded green / amber / red from the worst quota across services; hover shows the percentage; the tray menu offers Open / Set up accounts / Settings / Quit.
 - **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap.
-- **Magic sign-in for Claude** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; paste-a-session-key fallback under _Advanced_. **Copilot** uses a one-step paste flow with a built-in _"Create one on GitHub →"_ button (the billing endpoint we call requires a fine-grained PAT permission that classic OAuth scopes can't grant — see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
+- **Magic sign-in for Claude** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; paste-a-session-key fallback under _Advanced_. **Copilot** uses a one-step paste flow with a built-in _"Create one on GitHub →"_ button — paste any GitHub token (no special permission needed); the plan and quota cap are read from your account (see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
 - **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
@@ -199,7 +199,8 @@ Headroom exists because the data acquisition problem had already been solved by 
 
 - [SlavomirDurej/claude-usage-widget](https://github.com/SlavomirDurej/claude-usage-widget) — Electron implementation, embedded webview auth pattern
 - [rishi-banerjee1/claude-usage-widget](https://github.com/rishi-banerjee1/claude-usage-widget) — Swift single-file approach, Cloudflare retry logic
-- [bristena-op/copilot-usage-tracker](https://github.com/bristena-op/copilot-usage-tracker) — confirmed the official GitHub billing API endpoint for premium requests
+- [bristena-op/copilot-usage-tracker](https://github.com/bristena-op/copilot-usage-tracker) — confirmed the original GitHub billing API endpoint for premium requests
+- [kasuken/vscode-copilot-insights](https://github.com/kasuken/vscode-copilot-insights) — pointed us at the `copilot_internal/user` endpoint and its AI-Credits quota shape
 
 Headroom's contribution is combining both services in one native menu bar app, with multiple auth paths and a cohesive design.
 
