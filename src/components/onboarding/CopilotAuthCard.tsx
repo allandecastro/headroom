@@ -17,6 +17,18 @@ export function CopilotAuthCard() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [code, setCode] = useState<CopilotSigninStart | null>(null);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode() {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code.user_code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   useEffect(() => {
     const unlistenDone = listen('copilot-signed-in', () => {
@@ -68,8 +80,18 @@ export function CopilotAuthCard() {
                   </button>
                   :
                 </p>
-                <div className="text-center font-mono text-[18px] font-semibold tracking-[0.18em] text-fg-primary">
-                  {code.user_code}
+                <div className="flex items-center justify-center gap-2">
+                  <span className="font-mono text-[18px] font-semibold tracking-[0.18em] text-fg-primary">
+                    {code.user_code}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    aria-label="Copy code"
+                    className="rounded-[5px] border-hairline border-default px-2 py-1 text-[10px] text-fg-secondary hover:bg-secondary"
+                  >
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-fg-tertiary">Waiting for authorization…</p>
               </>
