@@ -83,32 +83,32 @@ Each window is `{ utilization: f64, resets_at: Option<DateTime> }`. The adapter 
 
 ### GitHub Copilot
 
-**Endpoint** (official, documented):
+**Endpoint** (internal):
 
 ```
-GET https://api.github.com/users/{username}/settings/billing/premium_request/usage
-    ?year=2026&month=5
+GET https://api.github.com/copilot_internal/user
 Authorization: Bearer {token}
-Accept: application/vnd.github+json
-X-GitHub-Api-Version: 2022-11-28
+Accept: application/json
 ```
 
-The token must be a fine-grained PAT with `Account → Plan → Read-only` — see [Auth flows](#auth-flows). Classic OAuth scopes can't grant this permission, so the magic "Sign in with GitHub" path is intentionally not used for Copilot.
+The token is any GitHub token — a classic/OAuth token or PAT, no billing-specific permission. See [Auth flows](#auth-flows). This is the same endpoint the GitHub Copilot editor extensions use; it is undocumented and may change, but it returns the plan, per-feature quotas, and reset date in one call, so caps are read from the response instead of a hardcoded table.
 
-**Response shape:**
+**Response shape** (confirmed against a live response):
 
 ```json
 {
-  "usageItems": [
-    { "product": "Copilot", "grossQuantity": 847.0, "date": "2026-05-01", ... },
-    ...
-  ]
+  "copilot_plan": "individual",
+  "token_based_billing": true,
+  "quota_reset_date_utc": "2026-06-30T22:00:00.000Z",
+  "quota_snapshots": {
+    "premium_interactions": { "entitlement": 300, "quota_remaining": 120, "unlimited": false },
+    "chat":                 { "entitlement": 200, "quota_remaining": 184, "unlimited": false },
+    "completions":          { "entitlement": 2000, "quota_remaining": 2000, "unlimited": false }
+  }
 }
 ```
 
-Adapter sums `grossQuantity` where `product == "Copilot"`. The monthly limit (50/300/1500) is not exposed by the API and must be set by the user at onboarding, derived from their plan.
-
-**June 1, 2026 migration.** GitHub is replacing premium requests with AI Credits on this date. The same endpoint will return credit amounts in USD rather than request counts. The Copilot source adapter has a `unit` field on its output (`requests` | `credits`) so the UI can render either correctly.
+Under token-based billing the `premium_interactions` quota is the **AI Credits** allowance. The adapter surfaces a single headline quota, picking the first _bounded_ entry (`unlimited == false` and `entitlement > 0`) in priority order `premium_interactions → chat → completions → any other`. This means a Pro/Pro+ account shows AI Credits, while a free/individual account (which reports `premium_interactions` with `entitlement: 0`) falls through to its `chat` allowance. For the chosen quota: `used = entitlement − quota_remaining`, `total = entitlement`, reset parsed from `quota_reset_date_utc` (falling back to the start of next month). Plans where every quota is unlimited surface no budget row.
 
 ---
 
@@ -116,7 +116,7 @@ Adapter sums `grossQuantity` where `product == "Copilot"`. The monthly limit (50
 
 Each source supports a primary "magic" path and a fallback paste path. Both paths produce the same artifact (a Bearer token or `sessionKey`) stored in the OS keychain.
 
-> **Current status.** Claude has a magic webview sign-in (`start_claude_signin`) with a paste-session-key fallback under "Advanced". Copilot is **paste-PAT only** — the billing endpoint requires a fine-grained PAT permission (`Account → Plan: Read-only`) that classic OAuth scopes can't grant, and shipping a GitHub App for this would add maintainer + phishing-surface for one HTTP call. The same approach is taken by every working third-party Copilot widget we surveyed (e.g. `bristena-op/copilot-usage-tracker`).
+> **Current status.** Claude has a magic webview sign-in (`start_claude_signin`) with a paste-session-key fallback under "Advanced". Copilot is a **one-step token paste** — `copilot_internal/user` accepts any GitHub token, so there is no special permission to grant. (This replaced the old billing endpoint, which required a fine-grained PAT with `Account → Plan: Read-only`.)
 
 ### Claude — primary: embedded webview
 
@@ -131,11 +131,11 @@ Each source supports a primary "magic" path and a fallback paste path. Both path
 
 For users who can't run a webview (some Linux distros without webkit2gtk, or air-gapped environments), a hidden "Advanced" panel accepts a manually copied `sessionKey` value. Instructions point at DevTools → Application → Cookies → `claude.ai` → `sessionKey`.
 
-### Copilot — paste a fine-grained PAT
+### Copilot — paste a GitHub token
 
-The Copilot onboarding card shows the PAT form directly (no magic button). The user creates a **fine-grained** personal access token at `github.com/settings/personal-access-tokens/new` with `Account → Plan → Read-only`, pastes it plus their GitHub username and plan tier, and Headroom stores all three in the keychain. The form includes a one-click "Create one on GitHub →" button that opens the token page.
+The Copilot onboarding card shows a single token field. The user pastes any GitHub personal access token (classic or fine-grained) — no specific permission is required — and Headroom stores it under `copilot.token`. The form includes a one-click "Create one on GitHub →" button that opens `github.com/settings/tokens/new`. The plan tier and quota caps are read from `copilot_internal/user`, so the user no longer supplies a username or plan.
 
-**Why not OAuth?** Classic OAuth scopes don't grant access to the per-user billing endpoint we call (`/users/{u}/settings/billing/premium_request/usage`). The endpoint accepts fine-grained PATs with `Plan: Read-only` or GitHub App tokens with the equivalent permission — and shipping a GitHub App just for this one HTTP call would add maintainer/phishing surface without changing the end-user step count meaningfully.
+**Why a paste, not OAuth?** `copilot_internal/user` is an internal endpoint, so there's no published OAuth scope to request via a magic sign-in. A pasted token is the simplest path that works today; a device-flow "Sign in with GitHub" could replace it later without changing the endpoint.
 
 ---
 
@@ -181,9 +181,9 @@ Thin wrapper around the `keyring` crate. All values stored under service name `h
 
 - `claude.session` — the `sessionKey` cookie value
 - `claude.orgId` — cached organization UUID
-- `copilot.token` — Bearer token (OAuth or PAT)
-- `copilot.username` — GitHub username used in the billing API path
-- `copilot.plan` — plan tier ("free" | "pro" | "pro_plus"), used to look up the monthly cap
+- `copilot.token` — GitHub token (any classic/OAuth token or PAT)
+
+`copilot.username` / `copilot.plan` are legacy keys from the old billing API. They are no longer written, but `clear_credentials` still deletes them so sign-out cleans up upgraded installs.
 
 The renderer writes these via IPC commands (the onboarding flow calls them; the renderer never touches the keychain directly):
 
@@ -191,8 +191,6 @@ The renderer writes these via IPC commands (the onboarding flow calls them; the 
 | --------------------------------- | ------------------------------------------------------------------------- |
 | `set_claude_session(session_key)` | Writes `claude.session`                                                   |
 | `set_copilot_token(token)`        | Writes `copilot.token`                                                    |
-| `set_copilot_username(username)`  | Writes `copilot.username`                                                 |
-| `set_copilot_plan(plan)`          | Validates `plan` against the recognized tiers, then writes `copilot.plan` |
 | `clear_credentials(service)`      | Deletes every key under the `claude` or `copilot` prefix                  |
 
 ### `commands`
@@ -294,6 +292,6 @@ See [DESIGN_SYSTEM.md § Tray icons](DESIGN_SYSTEM.md#tray-icons). Four PNG asse
 
 - **User has both Claude Code OAuth credentials and a claude.ai session in browser**: prefer Claude Code OAuth in keychain (more stable, no Cloudflare). Fall back to webview/cookie only if it fails.
 - **Daylight saving transition**: all reset times are stored as UTC; the renderer formats them in the user's local TZ at display time. Burndown chart x-axis is in local time.
-- **User changes plan mid-month**: the `copilot.plan` keychain entry is editable from Settings. Re-detection from a credentials hint (e.g. user signs in fresh) is automatic.
+- **User changes plan mid-month**: nothing to do — the plan, entitlement, and reset date come from `copilot_internal/user` on every poll, so a tier change is picked up automatically.
 - **Anthropic ships an official usage API**: the `claude.rs` source has a clean interface; adding a second strategy (Bearer vs Cookie) is a 30-line change.
 - **Multiple monitors with different DPI**: tray icon must render correctly at 16, 22, 32 px logical. SVG source rasterized at build time into all sizes.

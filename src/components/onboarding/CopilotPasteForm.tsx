@@ -1,31 +1,16 @@
 import { useState } from 'react';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
-import { setCopilotPlan, setCopilotToken, setCopilotUsername } from '../../lib/ipc';
-import type { CopilotPlan } from '../../lib/ipc';
-import { SegmentedControl } from '../ui/SegmentedControl';
+import { setCopilotToken } from '../../lib/ipc';
 import { TextField } from '../ui/TextField';
 import { SaveRow } from './SaveRow';
 import type { SaveStatus } from './SaveRow';
 
-const PLAN_OPTIONS: { value: CopilotPlan; label: string }[] = [
-  { value: 'free', label: 'Free' },
-  { value: 'pro', label: 'Pro' },
-  { value: 'pro_plus', label: 'Pro+' },
-];
-
-// GitHub login rules: 1–39 chars, alphanumeric or single hyphens.
-const USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/;
-
 export function CopilotPasteForm() {
   const [token, setToken] = useState('');
-  const [username, setUsername] = useState('');
-  const [plan, setPlan] = useState<CopilotPlan>('pro');
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState('');
 
-  const tokenOk = token.trim().length > 0;
-  const usernameOk = USERNAME_RE.test(username.trim());
-  const valid = tokenOk && usernameOk;
+  const valid = token.trim().length > 0;
 
   async function save() {
     if (!valid) return;
@@ -33,8 +18,6 @@ export function CopilotPasteForm() {
     setError('');
     try {
       await setCopilotToken(token.trim());
-      await setCopilotUsername(username.trim());
-      await setCopilotPlan(plan);
       setStatus('saved');
     } catch (e) {
       setStatus('error');
@@ -45,7 +28,7 @@ export function CopilotPasteForm() {
   return (
     <div className="flex flex-col gap-3">
       <TextField
-        label="Personal access token"
+        label="GitHub token"
         password
         mono
         value={token}
@@ -53,17 +36,14 @@ export function CopilotPasteForm() {
           setToken(v);
           setStatus('idle');
         }}
-        placeholder="github_pat_… or ghp_…"
+        placeholder="ghp_… or github_pat_…"
         hint={
           <>
-            Fine-grained token with <span className="font-mono">Account → Plan → Read-only</span>.{' '}
+            Any GitHub personal access token — no special permission needed. Your plan and quota are
+            read from your account.{' '}
             <button
               type="button"
-              onClick={() =>
-                openUrl('https://github.com/settings/personal-access-tokens/new').catch(
-                  console.error,
-                )
-              }
+              onClick={() => openUrl('https://github.com/settings/tokens/new').catch(console.error)}
               className="underline hover:text-fg-secondary"
             >
               Create one on GitHub →
@@ -71,34 +51,6 @@ export function CopilotPasteForm() {
           </>
         }
       />
-
-      <TextField
-        label="GitHub username"
-        value={username}
-        onChange={(v) => {
-          setUsername(v);
-          setStatus('idle');
-        }}
-        placeholder="octocat"
-        error={
-          username.trim().length > 0 && !usernameOk
-            ? 'Letters, numbers, and single hyphens only.'
-            : undefined
-        }
-      />
-
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] text-fg-secondary">Plan</span>
-        <SegmentedControl
-          ariaLabel="Copilot plan"
-          options={PLAN_OPTIONS}
-          value={plan}
-          onChange={(v) => {
-            setPlan(v);
-            setStatus('idle');
-          }}
-        />
-      </div>
 
       <SaveRow status={status} error={error} disabled={!valid} onSave={save} />
     </div>

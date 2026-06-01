@@ -97,8 +97,6 @@ pub fn run() {
             commands::quit_app,
             commands::set_claude_session,
             commands::set_copilot_token,
-            commands::set_copilot_username,
-            commands::set_copilot_plan,
             commands::clear_credentials,
             commands::get_settings,
             commands::set_settings,

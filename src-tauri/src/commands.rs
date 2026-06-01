@@ -43,32 +43,6 @@ pub fn set_copilot_token(
 }
 
 #[tauri::command]
-pub fn set_copilot_username(
-    state: tauri::State<'_, Arc<AppState>>,
-    username: String,
-) -> Result<(), String> {
-    state
-        .credentials
-        .set("copilot.username", &username)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn set_copilot_plan(
-    state: tauri::State<'_, Arc<AppState>>,
-    plan: String,
-) -> Result<(), String> {
-    // Reject unknown tiers so the monthly-cap lookup stays valid.
-    if !credentials::is_valid_copilot_plan(&plan) {
-        return Err(format!("invalid plan: {plan}"));
-    }
-    state
-        .credentials
-        .set("copilot.plan", &plan)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub fn clear_credentials(
     app: AppHandle,
     state: tauri::State<'_, Arc<AppState>>,

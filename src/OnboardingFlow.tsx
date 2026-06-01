@@ -11,8 +11,8 @@ import { useFitWindowHeight } from './lib/useFitWindow';
 
 // Full-window auth-method picker.
 // Claude has a one-click sign-in (embedded webview) with a paste-session-key
-// fallback under "Advanced". Copilot is paste-PAT only — the billing endpoint
-// requires a fine-grained PAT scope that OAuth Apps can't grant.
+// fallback under "Advanced". Copilot is a one-step token paste — the
+// copilot_internal/user endpoint reads quota from any GitHub token.
 export default function OnboardingFlow() {
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 480);
