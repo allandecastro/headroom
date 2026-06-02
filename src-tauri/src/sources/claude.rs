@@ -104,6 +104,42 @@ impl ClaudeSource {
         Ok(usage.into_status())
     }
 
+    /// Fetch the raw `/usage` JSON for diagnostics, pretty-printed, with the
+    /// `sessionKey` redacted defensively. Mirrors the Copilot diagnostics path —
+    /// this endpoint is undocumented too, so a raw dump is the only ground truth
+    /// when the shape changes. Returns the HTTP status line on a non-200 so the
+    /// reason is visible (auth/Cloudflare/etc.).
+    pub(crate) async fn fetch_raw(
+        &self,
+        session_key: &str,
+        org_id: Option<&str>,
+    ) -> Result<String, SourceError> {
+        let resolved_org_id = match org_id {
+            Some(id) => id.to_string(),
+            None => self.fetch_org_id(session_key).await?,
+        };
+        let url = format!(
+            "{}/api/organizations/{}/usage",
+            self.base_url, resolved_org_id
+        );
+        let response = self
+            .client
+            .get(&url)
+            .header(header::COOKIE, format!("sessionKey={session_key}"))
+            .header(header::ACCEPT, "application/json")
+            .send()
+            .await?;
+        let status = response.status().as_u16();
+        let text = response.text().await.unwrap_or_default();
+        let pretty = serde_json::from_str::<serde_json::Value>(&text)
+            .and_then(|v| serde_json::to_string_pretty(&v))
+            .unwrap_or(text);
+        let redacted = pretty.replace(session_key, "<redacted>");
+        Ok(format!(
+            "GET /api/organizations/{resolved_org_id}/usage → HTTP {status}\n\n{redacted}"
+        ))
+    }
+
     async fn fetch_org_id(&self, session_key: &str) -> Result<String, SourceError> {
         let response = self
             .client

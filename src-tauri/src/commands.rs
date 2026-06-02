@@ -288,6 +288,22 @@ pub async fn copilot_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Resu
         .map_err(|e| e.to_string())
 }
 
+/// Diagnostics: fetch the raw Claude `/usage` JSON (sessionKey redacted) — the
+/// Claude counterpart to `copilot_diagnostics`, since that endpoint is
+/// undocumented too. See `sources::claude`.
+#[tauri::command]
+pub async fn claude_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+    let session = state
+        .credentials
+        .claude_session()
+        .ok_or("No Claude session stored — sign in to Claude first.")?;
+    let org_id = state.credentials.claude_org_id();
+    crate::sources::claude::ClaudeSource::default()
+        .fetch_raw(&session, org_id.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Show (and focus) a named window if it exists.
 fn show_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {

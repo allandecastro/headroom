@@ -32,31 +32,43 @@ export function useFitWindowHeight(
     const fit = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(async () => {
-        const height = Math.ceil(el.getBoundingClientRect().height);
-        if (height <= 0) return;
+        const contentH = Math.ceil(el.getBoundingClientRect().height);
+        if (contentH <= 0) return;
         const win = getCurrentWindow();
         try {
-          await win.setSize(new LogicalSize(width, height));
+          // Resolve the monitor first so we can clamp the window to the usable
+          // work area BEFORE sizing — otherwise tall content (e.g. a grown
+          // Settings page) makes the window overflow behind the taskbar.
           const monitor = await currentMonitor();
-          if (monitor) {
-            const scale = monitor.scaleFactor;
-            const monW = monitor.size.width / scale;
-            const monH = monitor.size.height / scale;
-            const monX = monitor.position.x / scale;
-            const monY = monitor.position.y / scale;
-            if (anchorBottomRight) {
-              // Popover: pin to the bottom-right corner near the tray.
-              const x = Math.round(monX + monW - width - MARGIN);
-              const y = Math.round(monY + monH - height - TITLEBAR - TASKBAR - MARGIN);
-              await win.setPosition(new LogicalPosition(x, y));
-            } else {
-              // Settings/onboarding: center within the usable area so the
-              // bottom never slips behind the taskbar.
-              const usableH = monH - TASKBAR - TITLEBAR;
-              const x = Math.round(monX + (monW - width) / 2);
-              const y = Math.round(monY + Math.max(MARGIN, (usableH - height) / 2));
-              await win.setPosition(new LogicalPosition(x, y));
-            }
+          if (!monitor) {
+            await win.setSize(new LogicalSize(width, contentH));
+            return;
+          }
+          const scale = monitor.scaleFactor;
+          const monW = monitor.size.width / scale;
+          const monH = monitor.size.height / scale;
+          const monX = monitor.position.x / scale;
+          const monY = monitor.position.y / scale;
+
+          // Never taller than the work area (above the taskbar), with a margin
+          // top and bottom. If the content exceeds this, the window scrolls
+          // (see the panel's overflow container) rather than clipping the taskbar.
+          const maxH = Math.max(0, monH - TASKBAR - TITLEBAR - 2 * MARGIN);
+          const height = Math.min(contentH, maxH);
+          await win.setSize(new LogicalSize(width, height));
+
+          if (anchorBottomRight) {
+            // Popover: pin to the bottom-right corner near the tray.
+            const x = Math.round(monX + monW - width - MARGIN);
+            const y = Math.round(monY + monH - height - TITLEBAR - TASKBAR - MARGIN);
+            await win.setPosition(new LogicalPosition(x, y));
+          } else {
+            // Settings/onboarding: center within the usable area so the bottom
+            // never slips behind the taskbar.
+            const usableH = monH - TASKBAR - TITLEBAR;
+            const x = Math.round(monX + (monW - width) / 2);
+            const y = Math.round(monY + Math.max(MARGIN, (usableH - height) / 2));
+            await win.setPosition(new LogicalPosition(x, y));
           }
         } catch {
           /* window-size/position permission missing or window closed — ignore */

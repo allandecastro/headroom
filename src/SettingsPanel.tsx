@@ -22,6 +22,7 @@ import {
   getUpdate,
   checkForUpdateNow,
   copilotDiagnostics,
+  claudeDiagnostics,
 } from './lib/ipc';
 import type { Settings } from './lib/ipc';
 import type { Snapshot, ServiceStatus, UpdateInfo } from './lib/api';
@@ -207,19 +208,29 @@ export default function SettingsPanel() {
     getUpdate().then(setUpdateInfo).catch(console.error);
   }, []);
 
-  const [diagState, setDiagState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
+  const [diag, setDiag] = useState<{
+    which: 'claude' | 'copilot';
+    state: 'copying' | 'done' | 'error';
+  } | null>(null);
 
-  // Copy the raw (token-redacted) copilot_internal/user payload to the clipboard
-  // — for reporting the undocumented endpoint's real, post-migration shape.
-  function copyCopilotDiagnostics() {
-    setDiagState('copying');
-    copilotDiagnostics()
+  // Copy the raw (token-redacted) usage payload for a service to the clipboard —
+  // for reporting these undocumented endpoints' real shapes. Claude reads
+  // /api/.../usage; Copilot reads copilot_internal/user.
+  function copyDiagnostics(which: 'claude' | 'copilot') {
+    setDiag({ which, state: 'copying' });
+    const fetcher = which === 'claude' ? claudeDiagnostics : copilotDiagnostics;
+    fetcher()
       .then((raw) => navigator.clipboard.writeText(raw))
-      .then(() => setDiagState('done'))
+      .then(() => setDiag({ which, state: 'done' }))
       .catch((err) => {
         console.error(err);
-        setDiagState('error');
+        setDiag({ which, state: 'error' });
       });
+  }
+
+  function diagLabel(which: 'claude' | 'copilot', name: string): string {
+    if (diag?.which !== which) return name;
+    return diag.state === 'copying' ? 'Copying…' : diag.state === 'done' ? 'Copied ✓' : 'Failed';
   }
 
   // Manual "Check for updates" — resolves to the newer release or null.
@@ -294,7 +305,7 @@ export default function SettingsPanel() {
   const copilotSvc = snapshot?.services.find((s) => s.id === 'copilot');
 
   return (
-    <div className="min-h-screen bg-window-opaque text-fg-primary">
+    <div className="h-screen overflow-y-auto bg-window-opaque text-fg-primary">
       <div ref={bodyRef} className="px-[22px] pt-[18px] pb-4">
         {/* POLLING */}
         <Group label="Polling">
@@ -449,24 +460,27 @@ export default function SettingsPanel() {
           </Row>
           <Row>
             <div className="flex flex-1 flex-col">
-              <span className="text-[12px] text-fg-secondary">Copilot diagnostics</span>
+              <span className="text-[12px] text-fg-secondary">Diagnostics</span>
               <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
                 Copy the raw usage payload (token redacted) to report a problem
               </span>
             </div>
-            <button
-              onClick={copyCopilotDiagnostics}
-              disabled={diagState === 'copying'}
-              className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
-            >
-              {diagState === 'copying'
-                ? 'Copying…'
-                : diagState === 'done'
-                  ? 'Copied ✓'
-                  : diagState === 'error'
-                    ? 'Copy failed'
-                    : 'Copy'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => copyDiagnostics('claude')}
+                disabled={diag?.state === 'copying'}
+                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+              >
+                {diagLabel('claude', 'Claude')}
+              </button>
+              <button
+                onClick={() => copyDiagnostics('copilot')}
+                disabled={diag?.state === 'copying'}
+                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+              >
+                {diagLabel('copilot', 'Copilot')}
+              </button>
+            </div>
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>

@@ -48,6 +48,36 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Theme-aware scrollbar. The OS default reads as a blank/contrasting gutter
+   (especially in dark mode), so style a thin, subtle one from the same tokens.
+   The Tauri webviews are Chromium (Windows) / WebKit (macOS, Linux), so the
+   `::-webkit-scrollbar` pseudo-elements apply everywhere; the standard
+   `scrollbar-*` props are a fallback. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fg-quaternary) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  /* 2px transparent border + padding-box clip → a slim ~4px pill. */
+  background-color: var(--fg-quaternary);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fg-tertiary);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer components {
   .surface {
     background: var(--bg-window);
