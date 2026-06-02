@@ -516,6 +516,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn business_with_user_budget_is_ai_credits_capped() {
+        // Real migrated Business payload WITH a user-level budget (Payload B): same
+        // shape as the pooled seat EXCEPT premium_interactions is now capped —
+        // unlimited:false, entitlement 2400 (= $24 ULB × 100), with live remaining.
+        // Must classify as AiCreditsCapped with real numbers (never pooled).
+        let (_s, status) = serve(json!({
+            "copilot_plan": "business",
+            "access_type_sku": "copilot_for_business_seat_quota",
+            "token_based_billing": true,
+            "quota_reset_date": "2026-07-01",
+            "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
+            "quota_snapshots": {
+                "chat": { "unlimited": true, "has_quota": false, "entitlement": 0, "token_based_billing": true },
+                "completions": { "unlimited": true, "has_quota": false, "entitlement": 0, "token_based_billing": true },
+                "premium_interactions": { "unlimited": false, "has_quota": true, "entitlement": 2400, "remaining": 1292, "quota_remaining": 1292.9, "percent_remaining": 53.8, "overage_permitted": true, "token_based_billing": true }
+            }
+        }))
+        .await;
+
+        assert_eq!(status.plan, "Business");
+        assert_eq!(status.quotas.len(), 1);
+        let q = &status.quotas[0];
+        assert_eq!(q.label, "AI Credits");
+        assert_eq!(
+            q.total, 2400.0,
+            "entitlement read from payload, never hardcoded"
+        );
+        assert!((q.used - 1107.1).abs() < 0.01, "used was {}", q.used);
+        match status.copilot_usage {
+            Some(CopilotUsage::AiCreditsCapped {
+                entitlement,
+                remaining,
+                percent_remaining,
+                ..
+            }) => {
+                assert_eq!(entitlement, 2400.0);
+                assert!((remaining - 1292.9).abs() < 0.01);
+                assert_eq!(percent_remaining, Some(53.8));
+            }
+            other => panic!("expected AiCreditsCapped, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
     async fn migrated_individual_pro_plus_is_ai_credits_capped() {
         // SYNTHETIC (no real sample yet): an individual migrated seat is NOT pooled
         // — it carries personal included credits, so token_based_billing is true
