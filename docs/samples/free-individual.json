@@ -1,0 +1,69 @@
+{
+  "login": "allandecastro",
+  "access_type_sku": "free_limited_copilot",
+  "assigned_date": "2026-04-27T17:18:26+02:00",
+  "can_signup_for_limited": false,
+  "chat_enabled": true,
+  "cli_enabled": true,
+  "copilotignore_enabled": false,
+  "copilot_plan": "individual",
+  "editor_preview_features_enabled": true,
+  "is_mcp_enabled": true,
+  "restricted_telemetry": false,
+  "cli_remote_control_enabled": true,
+  "cloud_session_storage_enabled": false,
+  "endpoints": {
+    "api": "https://api.individual.githubcopilot.com",
+    "origin-tracker": "https://origin-tracker.individual.githubcopilot.com",
+    "proxy": "https://proxy.individual.githubcopilot.com",
+    "telemetry": "https://telemetry.individual.githubcopilot.com"
+  },
+  "can_upgrade_plan": false,
+  "quota_snapshots": {
+    "chat": {
+      "overage_count": 0,
+      "overage_permitted": false,
+      "percent_remaining": 90.7,
+      "quota_id": "chat",
+      "quota_remaining": 181.4,
+      "unlimited": false,
+      "timestamp_utc": "2026-06-02T17:25:09.065Z",
+      "has_quota": false,
+      "quota_reset_at": 0,
+      "token_based_billing": true,
+      "remaining": 181,
+      "entitlement": 200
+    },
+    "completions": {
+      "overage_count": 0,
+      "overage_permitted": false,
+      "percent_remaining": 100.0,
+      "quota_id": "completions",
+      "quota_remaining": 2000.0,
+      "unlimited": false,
+      "timestamp_utc": "2026-06-02T17:25:09.065Z",
+      "has_quota": false,
+      "quota_reset_at": 0,
+      "token_based_billing": true,
+      "remaining": 2000,
+      "entitlement": 2000
+    },
+    "premium_interactions": {
+      "overage_count": 0,
+      "overage_permitted": false,
+      "percent_remaining": 0.0,
+      "quota_id": "premium_interactions",
+      "quota_remaining": 0.0,
+      "unlimited": false,
+      "timestamp_utc": "2026-06-02T17:25:09.065Z",
+      "has_quota": false,
+      "quota_reset_at": 0,
+      "token_based_billing": true,
+      "remaining": 0,
+      "entitlement": 0
+    }
+  },
+  "token_based_billing": true,
+  "quota_reset_date": "2026-07-01",
+  "quota_reset_date_utc": "2026-07-01T00:00:00.000Z"
+}

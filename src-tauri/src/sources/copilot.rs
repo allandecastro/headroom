@@ -588,6 +588,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn real_free_fixture_classifies_as_chat_request_cap() {
+        // Real captured Free payload (docs/samples/free-individual.json), run through
+        // the actual fetch path. token_based_billing:true but premium_interactions
+        // is empty and chat is a real 200 cap → PremiumRequests("Chat"), NOT pooled,
+        // NOT unknown. Locks the Free outcome against regressions.
+        let body: serde_json::Value =
+            serde_json::from_str(include_str!("../../../docs/samples/free-individual.json"))
+                .expect("fixture parses");
+        let (_s, status) = serve(body).await;
+
+        assert_eq!(status.plan, "Individual");
+        assert_eq!(status.quotas.len(), 1);
+        let q = &status.quotas[0];
+        assert_eq!(q.label, "Chat");
+        assert_eq!(q.total, 200.0);
+        match status.copilot_usage {
+            Some(CopilotUsage::PremiumRequests { ref label, .. }) => assert_eq!(label, "Chat"),
+            ref other => panic!("expected PremiumRequests(Chat), got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
     async fn free_individual_shows_bounded_chat_not_pooled() {
         // Real migrated Free payload (allandecastro): token_based_billing is true,
         // but chat/completions are REAL request caps and premium_interactions is
