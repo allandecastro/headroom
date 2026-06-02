@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Pace, ServiceStatus, Quota } from '../lib/api';
+import type { Pace, ServiceStatus, Quota, CopilotUsage } from '../lib/api';
+import { copilotDiagnostics } from '../lib/ipc';
 import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
 
 interface Props {
@@ -61,16 +62,71 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
     );
   }
 
+  const visibleQuotas = service.quotas.filter(
+    (q) => q.window !== 'claude_design' || showClaudeDesign,
+  );
+
   return (
     <section className="py-2">
       {header}
-      {service.quotas
-        .filter((q) => q.window !== 'claude_design' || showClaudeDesign)
-        .map((q) => (
+      {visibleQuotas.length > 0 ? (
+        visibleQuotas.map((q) => (
           <QuotaRow key={q.window} quota={q} warnPct={warnPct} critPct={critPct} />
-        ))}
+        ))
+      ) : (
+        // Active but no numeric quota row — never render a blank card. Copilot
+        // carries a regime-tagged reason (unlimited / unparsed); others fall
+        // back to a neutral line.
+        <EmptyUsage usage={service.copilot_usage} />
+      )}
     </section>
   );
+}
+
+// Shown when a service is active but has no metered quota row to draw — an
+// unlimited plan, or a payload shape Headroom couldn't classify (e.g. the new
+// AI-Credits object under an id we don't recognize yet). Never a silent blank.
+function EmptyUsage({ usage }: { usage?: CopilotUsage }) {
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
+
+  async function copyDiagnostics() {
+    setCopyState('copying');
+    try {
+      await navigator.clipboard.writeText(await copilotDiagnostics());
+      setCopyState('done');
+    } catch (e) {
+      console.error(e);
+      setCopyState('error');
+    }
+  }
+
+  const copyLabel =
+    copyState === 'copying'
+      ? 'Copying…'
+      : copyState === 'done'
+        ? 'Copied ✓'
+        : copyState === 'error'
+          ? 'Copy failed'
+          : 'Copy diagnostics';
+
+  if (usage?.mode === 'unlimited') {
+    return (
+      <div className="text-2xs text-fg-quaternary">
+        {usage.label} — unlimited, no metered cap on this plan
+      </div>
+    );
+  }
+  if (usage?.mode === 'unknown') {
+    return (
+      <div className="text-2xs text-fg-quaternary" title={usage.raw_snapshot_ids.join(', ')}>
+        Couldn’t read usage — GitHub may have changed the billing format.{' '}
+        <button onClick={copyDiagnostics} className="underline hover:text-fg-secondary">
+          {copyLabel}
+        </button>
+      </div>
+    );
+  }
+  return <div className="text-2xs text-fg-quaternary">No usage data.</div>;
 }
 
 function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; critPct: number }) {

@@ -232,6 +232,7 @@ impl UsageResponse {
             state: ServiceState::Active,
             quotas,
             error_detail: None,
+            copilot_usage: None,
         }
     }
 }

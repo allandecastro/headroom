@@ -112,6 +112,11 @@ pub struct ServiceStatus {
     pub quotas: Vec<Quota>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_detail: Option<String>,
+    /// Copilot-only: the regime-tagged normalized usage, so the renderer can
+    /// show Unlimited / Unknown states (no numeric row) instead of a blank card.
+    /// `None` for non-Copilot services.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub copilot_usage: Option<copilot::CopilotUsage>,
 }
 
 impl ServiceStatus {
@@ -123,6 +128,7 @@ impl ServiceStatus {
             state: ServiceState::Unreachable,
             quotas: vec![],
             error_detail: Some(detail),
+            copilot_usage: None,
         }
     }
 
@@ -134,6 +140,7 @@ impl ServiceStatus {
             state: ServiceState::NeedsSetup,
             quotas: vec![],
             error_detail: None,
+            copilot_usage: None,
         }
     }
 
@@ -145,6 +152,7 @@ impl ServiceStatus {
             state: ServiceState::AuthRequired,
             quotas: vec![],
             error_detail: Some("Authentication required".to_string()),
+            copilot_usage: None,
         }
     }
 }

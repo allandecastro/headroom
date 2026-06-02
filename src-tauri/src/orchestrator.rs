@@ -232,6 +232,7 @@ mod tests {
             state: ServiceState::Active,
             quotas: vec![],
             error_detail: None,
+            copilot_usage: None,
         }
     }
 

@@ -136,6 +136,7 @@ mod tests {
             state,
             quotas,
             error_detail: None,
+            copilot_usage: None,
         }
     }
 

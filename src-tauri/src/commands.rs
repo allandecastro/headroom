@@ -272,6 +272,22 @@ pub async fn check_for_update_now(
     Ok(result)
 }
 
+/// Diagnostics: fetch the raw `copilot_internal/user` JSON (token redacted) so a
+/// user can paste their real payload when the parser can't classify it. The
+/// endpoint is undocumented and changed with the AI-Credits migration, so a live
+/// payload is the only ground truth — see `sources::copilot`.
+#[tauri::command]
+pub async fn copilot_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+    let token = state
+        .credentials
+        .copilot_token()
+        .ok_or("No Copilot token stored — sign in to GitHub first.")?;
+    crate::sources::copilot::CopilotSource::default()
+        .fetch_raw(&token)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Show (and focus) a named window if it exists.
 fn show_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {

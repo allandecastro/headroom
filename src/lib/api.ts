@@ -38,6 +38,34 @@ export interface Quota {
   pace?: Pace; // recent-burn-rate pace, only for long windows
 }
 
+// Copilot's normalized usage, tagged on billing regime. Mirrors the Rust
+// `CopilotUsage` enum in src-tauri/src/sources/copilot.rs. The endpoint is
+// undocumented and changed with the 2026-06-01 AI-Credits migration, so the UI
+// must render every case — including `unknown` — and degrade gracefully.
+export type CopilotUsage =
+  | {
+      mode: 'premium_requests'; // legacy request counter, or Free chat/completions
+      label: string;
+      entitlement: number;
+      remaining: number;
+      used: number;
+      percent_remaining?: number;
+      overage_permitted: boolean;
+      overage_count: number;
+    }
+  | {
+      mode: 'ai_credits'; // new usage-based credits (1 credit = $0.01)
+      label: string;
+      included_credits: number;
+      credits_remaining: number;
+      used: number;
+      percent_remaining?: number;
+      overage_permitted: boolean;
+      overage_count: number;
+    }
+  | { mode: 'unlimited'; label: string }
+  | { mode: 'unknown'; raw_snapshot_ids: string[] };
+
 export interface ServiceStatus {
   id: string;
   name: string;
@@ -45,6 +73,7 @@ export interface ServiceStatus {
   state: ServiceState;
   quotas: Quota[];
   error_detail?: string;
+  copilot_usage?: CopilotUsage; // Copilot only; drives the Unlimited / Unknown states
 }
 
 export interface Snapshot {

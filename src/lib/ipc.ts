@@ -97,3 +97,11 @@ export function getUpdate(): Promise<UpdateInfo | null> {
 export function checkForUpdateNow(): Promise<UpdateInfo | null> {
   return invoke('check_for_update_now');
 }
+
+/**
+ * Fetch the raw `copilot_internal/user` payload (token redacted) for diagnostics
+ * — used to capture the real (undocumented, post-migration) shape for reporting.
+ */
+export function copilotDiagnostics(): Promise<string> {
+  return invoke('copilot_diagnostics');
+}
