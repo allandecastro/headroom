@@ -28,6 +28,11 @@ fn is_long_window(w: QuotaWindow) -> bool {
 /// Per-source fetch budget. A source that exceeds it is shown as unreachable.
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// How often the background loop checks GitHub for a newer release. Kept well
+/// above the quota poll cadence — releases are rare and GitHub's unauthenticated
+/// API allows only ~60 calls/hr.
+const UPDATE_CHECK_INTERVAL_SECS: i64 = 6 * 3600;
+
 /// Fetch every source once and persist the resulting snapshot.
 pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
     let mut services = Vec::with_capacity(state.sources.len());
@@ -141,9 +146,72 @@ pub(crate) fn spawn_poll_loop(handle: AppHandle, state: Arc<AppState>) {
                 settings.notify_crit_pct,
             );
             notify_thresholds(&handle, &state, &snapshot, &settings).await;
+            maybe_check_update(&handle, &state, &settings).await;
             tokio::time::sleep(Duration::from_secs(settings.poll_interval_secs)).await;
         }
     });
+}
+
+/// Check GitHub for a newer release, throttled to [`UPDATE_CHECK_INTERVAL_SECS`]
+/// and gated on the `check_updates` setting. On a newer release: cache it, emit
+/// `update-available`, and fire a desktop notification once per version. A failed
+/// check is logged and retried next interval — it never interrupts polling.
+async fn maybe_check_update(
+    handle: &AppHandle,
+    state: &Arc<AppState>,
+    settings: &crate::settings::Settings,
+) {
+    if !settings.check_updates {
+        return;
+    }
+    let now = chrono::Utc::now().timestamp();
+    {
+        let last = *state.last_update_check.read().await;
+        if last != 0 && now - last < UPDATE_CHECK_INTERVAL_SECS {
+            return;
+        }
+    }
+    *state.last_update_check.write().await = now;
+
+    match state
+        .update_checker
+        .check(crate::updates::CURRENT_VERSION)
+        .await
+    {
+        Ok(Some(info)) => {
+            *state.update.write().await = Some(info.clone());
+            let _ = handle.emit("update-available", &info);
+            // Notify once per version, then persist so we don't nag every check.
+            if settings.notified_update_version != info.version {
+                notify_update(handle, &info);
+                let mut s = state.settings.write().await;
+                s.notified_update_version = info.version.clone();
+                if let Err(e) = s.save() {
+                    warn!(?e, "failed to persist notified update version");
+                }
+            }
+        }
+        Ok(None) => {
+            *state.update.write().await = None;
+        }
+        Err(e) => warn!(?e, "update check failed"),
+    }
+}
+
+fn notify_update(app: &AppHandle, info: &crate::updates::UpdateInfo) {
+    use tauri_plugin_notification::NotificationExt;
+    if let Err(e) = app
+        .notification()
+        .builder()
+        .title("Headroom update available")
+        .body(format!(
+            "Version {} is available — open Headroom to download.",
+            info.version
+        ))
+        .show()
+    {
+        warn!(?e, "failed to show update notification");
+    }
 }
 
 #[cfg(test)]
@@ -231,6 +299,9 @@ mod tests {
             settings: RwLock::new(Settings::default()),
             notified: RwLock::new(HashMap::new()),
             history: RwLock::new(crate::history::History::default()),
+            update_checker: crate::updates::UpdateChecker::default(),
+            update: RwLock::new(None),
+            last_update_check: RwLock::new(0),
         })
     }
 

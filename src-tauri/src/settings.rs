@@ -23,6 +23,18 @@ pub struct Settings {
     /// Surface the optional "Claude Design" usage window in the popover.
     #[serde(default)]
     pub show_claude_design: bool,
+    /// Periodically check GitHub for a newer release and notify once when found.
+    #[serde(default = "default_true")]
+    pub check_updates: bool,
+    /// Latest version already notified about, so the toast fires once per new
+    /// release rather than on every check. Empty = none yet. Carried through the
+    /// renderer's settings round-trip but never shown in the UI.
+    #[serde(default)]
+    pub notified_update_version: String,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -34,6 +46,8 @@ impl Default for Settings {
             notify_warn_pct: 80,
             notify_crit_pct: 95,
             show_claude_design: false,
+            check_updates: true,
+            notified_update_version: String::new(),
         }
     }
 }
@@ -175,6 +189,8 @@ mod tests {
             notify_warn_pct: 75,
             notify_crit_pct: 90,
             show_claude_design: true,
+            check_updates: false,
+            notified_update_version: "1.3.0".to_string(),
         };
         let json = serde_json::to_string(&s).unwrap();
         assert_eq!(serde_json::from_str::<Settings>(&json).unwrap(), s);

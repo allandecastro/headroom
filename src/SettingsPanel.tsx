@@ -19,9 +19,11 @@ import {
   clearCredentials,
   getAutostart,
   setAutostart,
+  getUpdate,
+  checkForUpdateNow,
 } from './lib/ipc';
 import type { Settings } from './lib/ipc';
-import type { Snapshot, ServiceStatus } from './lib/api';
+import type { Snapshot, ServiceStatus, UpdateInfo } from './lib/api';
 
 // ─── Poll interval options ───────────────────────────────────────────────────
 
@@ -53,6 +55,8 @@ const DEFAULT_SETTINGS: Settings = {
   notify_warn_pct: 80,
   notify_crit_pct: 95,
   show_claude_design: false,
+  check_updates: true,
+  notified_update_version: '',
 };
 
 // Open an external URL in the default browser.
@@ -189,6 +193,8 @@ export default function SettingsPanel() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [autostart, setAutostartState] = useState(false);
   const [appVersion, setAppVersion] = useState('');
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'uptodate'>('idle');
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 480);
 
@@ -197,7 +203,22 @@ export default function SettingsPanel() {
     getSettings().then(setLocalSettings).catch(console.error);
     getAutostart().then(setAutostartState).catch(console.error);
     getVersion().then(setAppVersion).catch(console.error);
+    getUpdate().then(setUpdateInfo).catch(console.error);
   }, []);
+
+  // Manual "Check for updates" — resolves to the newer release or null.
+  function runUpdateCheck() {
+    setUpdateStatus('checking');
+    checkForUpdateNow()
+      .then((u) => {
+        setUpdateInfo(u);
+        setUpdateStatus(u ? 'idle' : 'uptodate');
+      })
+      .catch((err) => {
+        console.error(err);
+        setUpdateStatus('idle');
+      });
+  }
 
   // Autostart is OS-level (not in settings.json), so toggle it directly.
   function toggleAutostart(enabled: boolean) {
@@ -376,12 +397,39 @@ export default function SettingsPanel() {
                 Know your headroom — quota meter for Claude & GitHub Copilot
               </span>
             </div>
-            <button
-              onClick={() => openUrl(`${GITHUB_URL}/releases`)}
-              className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary"
-            >
-              Check for updates
-            </button>
+            {updateInfo ? (
+              <button
+                onClick={() => openUrl(updateInfo.url)}
+                className="text-[10.5px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+              >
+                Download v{updateInfo.version} →
+              </button>
+            ) : (
+              <button
+                onClick={runUpdateCheck}
+                disabled={updateStatus === 'checking'}
+                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+              >
+                {updateStatus === 'checking'
+                  ? 'Checking…'
+                  : updateStatus === 'uptodate'
+                    ? 'Up to date ✓'
+                    : 'Check for updates'}
+              </button>
+            )}
+          </Row>
+          <Row>
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Check for updates automatically</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Notify me when a newer version is released
+              </span>
+            </div>
+            <Toggle
+              checked={settings.check_updates}
+              onChange={(v) => update({ check_updates: v })}
+              ariaLabel="Check for updates automatically"
+            />
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>

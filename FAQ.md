@@ -84,6 +84,10 @@ A few things are intentionally **out of scope** to keep Headroom a focused tray 
 
 Yes — that's the natural next direction. Each is a new file under `src-tauri/src/sources/` implementing the `QuotaSource` trait. Follow [open issues](https://github.com/allandecastro/headroom/issues?q=is%3Aissue+label%3Aenhancement) or open one for the service you want most. PRs welcome.
 
-### Auto-update? Code signing?
+### Does Headroom tell me when there's a new version?
 
-Planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr. It'll wait until there are enough non-developer users to justify the cost. Until then, manual updates from the [Releases](https://github.com/allandecastro/headroom/releases) page.
+Yes. It checks GitHub for a newer release on launch and every ~6 hours, and when one's out it shows a one-time desktop notification plus a "Download" banner in the popover that opens the release page. You can check on demand or turn the automatic check off under Settings → About. It's **notify-only** — it points you at the download; it doesn't install the update for you (that's the auto-update below).
+
+### In-app auto-update? Code signing?
+
+Auto-_install_ is planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr — so it'll wait until there are enough non-developer users to justify the cost. Until then Headroom **notifies** you of new versions (see above) and you grab the installer from the [Releases](https://github.com/allandecastro/headroom/releases) page.

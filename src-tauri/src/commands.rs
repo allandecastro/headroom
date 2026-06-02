@@ -242,6 +242,36 @@ pub async fn start_copilot_signin(
     Ok(info)
 }
 
+/// The cached update result (None = up to date or not yet checked), for the UI
+/// to render its banner / Settings line on load.
+#[tauri::command]
+pub async fn get_update(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<crate::updates::UpdateInfo>, String> {
+    Ok(state.update.read().await.clone())
+}
+
+/// Force an update check now (the Settings "Check for updates" button). Returns
+/// the result directly so the UI can show "up to date" vs "update available"
+/// immediately. Does not fire a notification — the user is already looking.
+#[tauri::command]
+pub async fn check_for_update_now(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<crate::updates::UpdateInfo>, String> {
+    let result = state
+        .update_checker
+        .check(crate::updates::CURRENT_VERSION)
+        .await
+        .map_err(|e| e.to_string())?;
+    *state.update.write().await = result.clone();
+    *state.last_update_check.write().await = chrono::Utc::now().timestamp();
+    if let Some(info) = &result {
+        let _ = app.emit("update-available", info);
+    }
+    Ok(result)
+}
+
 /// Show (and focus) a named window if it exists.
 fn show_window(app: &AppHandle, label: &str) {
     if let Some(window) = app.get_webview_window(label) {

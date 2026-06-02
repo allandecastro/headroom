@@ -3,6 +3,7 @@
 // Tauri maps JS camelCase keys to the Rust snake_case parameter names.
 
 import { invoke } from '@tauri-apps/api/core';
+import type { UpdateInfo } from './api';
 
 export type CredentialService = 'claude' | 'copilot';
 
@@ -45,6 +46,8 @@ export interface Settings {
   notify_warn_pct: number; // orange alert threshold (0 = off)
   notify_crit_pct: number; // red alert threshold (0 = off)
   show_claude_design: boolean;
+  check_updates: boolean; // auto-check GitHub for newer releases
+  notified_update_version: string; // version last toasted about (carried, not shown)
 }
 
 /** Load persisted settings from the backend. */
@@ -83,4 +86,14 @@ export function getAutostart(): Promise<boolean> {
 /** Enable/disable launching Headroom at login. */
 export function setAutostart(enabled: boolean): Promise<void> {
   return invoke('set_autostart', { enabled });
+}
+
+/** The cached update result (null = up to date / not yet checked). */
+export function getUpdate(): Promise<UpdateInfo | null> {
+  return invoke('get_update');
+}
+
+/** Force an update check now; resolves with the newer release or null. */
+export function checkForUpdateNow(): Promise<UpdateInfo | null> {
+  return invoke('check_for_update_now');
 }

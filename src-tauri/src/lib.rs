@@ -12,6 +12,7 @@ mod projection;
 mod settings;
 mod sources;
 mod tray;
+mod updates;
 
 use std::sync::Arc;
 
@@ -41,6 +42,12 @@ pub struct AppState {
     pub notified: RwLock<std::collections::HashMap<String, u8>>,
     /// Persisted per-quota usage history, for the popover sparkline.
     pub history: RwLock<history::History>,
+    /// Polls GitHub Releases for a newer build.
+    pub update_checker: updates::UpdateChecker,
+    /// Latest update found (None = up to date or not yet checked).
+    pub update: RwLock<Option<updates::UpdateInfo>>,
+    /// Unix seconds of the last update check, to throttle GitHub API hits.
+    pub last_update_check: RwLock<i64>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -62,6 +69,9 @@ pub fn run() {
         settings: RwLock::new(Settings::load()),
         notified: RwLock::new(std::collections::HashMap::new()),
         history: RwLock::new(history::History::load()),
+        update_checker: updates::UpdateChecker::default(),
+        update: RwLock::new(None),
+        last_update_check: RwLock::new(0),
     });
 
     tauri::Builder::default()
@@ -106,7 +116,9 @@ pub fn run() {
             commands::get_autostart,
             commands::set_autostart,
             commands::start_claude_signin,
-            commands::start_copilot_signin
+            commands::start_copilot_signin,
+            commands::get_update,
+            commands::check_for_update_now
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
