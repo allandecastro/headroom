@@ -21,6 +21,7 @@ import {
   setAutostart,
   getUpdate,
   checkForUpdateNow,
+  copilotDiagnostics,
 } from './lib/ipc';
 import type { Settings } from './lib/ipc';
 import type { Snapshot, ServiceStatus, UpdateInfo } from './lib/api';
@@ -205,6 +206,21 @@ export default function SettingsPanel() {
     getVersion().then(setAppVersion).catch(console.error);
     getUpdate().then(setUpdateInfo).catch(console.error);
   }, []);
+
+  const [diagState, setDiagState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
+
+  // Copy the raw (token-redacted) copilot_internal/user payload to the clipboard
+  // — for reporting the undocumented endpoint's real, post-migration shape.
+  function copyCopilotDiagnostics() {
+    setDiagState('copying');
+    copilotDiagnostics()
+      .then((raw) => navigator.clipboard.writeText(raw))
+      .then(() => setDiagState('done'))
+      .catch((err) => {
+        console.error(err);
+        setDiagState('error');
+      });
+  }
 
   // Manual "Check for updates" — resolves to the newer release or null.
   function runUpdateCheck() {
@@ -430,6 +446,27 @@ export default function SettingsPanel() {
               onChange={(v) => update({ check_updates: v })}
               ariaLabel="Check for updates automatically"
             />
+          </Row>
+          <Row>
+            <div className="flex flex-1 flex-col">
+              <span className="text-[12px] text-fg-secondary">Copilot diagnostics</span>
+              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+                Copy the raw usage payload (token redacted) to report a problem
+              </span>
+            </div>
+            <button
+              onClick={copyCopilotDiagnostics}
+              disabled={diagState === 'copying'}
+              className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+            >
+              {diagState === 'copying'
+                ? 'Copying…'
+                : diagState === 'done'
+                  ? 'Copied ✓'
+                  : diagState === 'error'
+                    ? 'Copy failed'
+                    : 'Copy'}
+            </button>
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>
