@@ -110,9 +110,9 @@ Sources: [Models and pricing](https://docs.github.com/en/copilot/reference/copil
 **Dual-source, regime-detecting.**
 
 1. **Live gauge (primary, keep):** `copilot_internal/user` for the near-real-time remaining snapshot, as today — but **detect the regime** from the payload instead of assuming `premium_interactions`:
-   - Pick the headline quota by scanning `quota_snapshots` for the first **bounded** credit/quota entry (any `quota_id` whose `unlimited === false && entitlement > 0`), not a hardcoded id.
-   - If every entry is `unlimited`, render **"Unlimited"**, never blank.
-   - Fix the `quota_reset_date` field name.
+   - Match the headline quota against ids we've **actually observed** (`premium_interactions` legacy counter, Free `chat`/`completions`), each tagged with its regime. **Do not guess** the migrated AI-Credits id and **do not** promote an arbitrary bounded entry — an unconfirmed/unrecognized shape surfaces as **Unknown** (with its raw ids) plus a Copy-diagnostics action, never a number under a guessed label. Add the real credits id once a live payload confirms it.
+   - If a recognized entry is `unlimited`, render **"Unlimited"**, never blank.
+   - Reset date: defensive fallback chain (`quota_reset_date_utc` → `quota_reset_date` → next month), not a blind field swap — the #44499 sample carried both fields.
 2. **Authoritative consumption (optional, opt-in):** `GET /users/{me}/settings/billing/usage` filtered to `product === "copilot"`, summing `netAmount` → credits used this cycle. Needs a **classic PAT** with billing scope — **not** the current OAuth device-flow `read:user` token and **not** fine-grained. So gate this behind an "Advanced → paste a classic billing PAT" path; don't force it on the common user.
 3. **Polling:** live snapshot at the normal cadence; billing-usage endpoint **infrequently** (on open + ~hourly) since it's ~daily-fresh and rate-sensitive.
 

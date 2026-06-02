@@ -30,7 +30,12 @@ const DEFAULT_BASE_URL: &str = "https://api.github.com";
 /// Billing regime a quota snapshot represents.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Regime {
-    /// New usage-based AI Credits (default after 2026-06-01).
+    /// New usage-based AI Credits (default after 2026-06-01). Intentionally NOT
+    /// wired to a quota id yet — we have never observed a migrated payload, and
+    /// we do not guess the id. It joins [`HEADLINE_QUOTAS`] only once a real
+    /// payload confirms it (via Copy diagnostics). Constructed in tests to prove
+    /// the path works.
+    #[allow(dead_code)]
     Credits,
     /// Request-counting quota: legacy premium requests (grandfathered annual
     /// plans) and the Free plan's chat/completions allowances.
@@ -40,17 +45,16 @@ enum Regime {
 /// Quota ids we know how to surface, **headline priority first**, each tagged
 /// with the billing regime it represents and the label to show.
 ///
-/// ⚠️ The endpoint is undocumented and changed with the 2026-06-01 AI-Credits
-/// migration. The new credits id has NOT been confirmed against a real migrated
-/// payload — the `Credits` rows below are best-effort probes. **This array is
-/// the single place to update** once a real payload reveals the true id: use the
-/// "Copy Copilot diagnostics" action (see [`CopilotSource::fetch_raw`]) to
-/// capture one. We deliberately do NOT guess beyond this list — an unrecognized
-/// shape surfaces as [`CopilotUsage::Unknown`] with its raw ids, never a blank.
+/// ⚠️ Every id here is one we have **actually observed** in a real payload — we
+/// do **not** guess. The endpoint is undocumented and changed with the
+/// 2026-06-01 AI-Credits migration; we have not yet seen a migrated payload, so
+/// the new AI-Credits id is **deliberately absent**. Until a real one is
+/// captured (via the "Copy Copilot diagnostics" action — see
+/// [`CopilotSource::fetch_raw`]), a credits-only seat falls through to
+/// [`CopilotUsage::Unknown`] carrying its raw ids — surfaced for reporting,
+/// never mis-shown under a guessed label. Add the confirmed id (with
+/// [`Regime::Credits`]) here once the real payload lands.
 const HEADLINE_QUOTAS: &[(&str, Regime, &str)] = &[
-    // New AI-Credits regime — ids unconfirmed, update when a real payload lands.
-    ("ai_credits", Regime::Credits, "AI Credits"),
-    ("credits", Regime::Credits, "AI Credits"),
     // Legacy premium-request counter (grandfathered annual plans).
     ("premium_interactions", Regime::Requests, "Premium requests"),
     // Free-plan request allowances.
@@ -213,12 +217,23 @@ impl QuotaSource for CopilotSource {
     }
 }
 
-/// Classify the snapshots into a normalized, regime-tagged usage. Never panics
-/// and never returns "nothing" — an unrecognized shape becomes
-/// [`CopilotUsage::Unknown`] carrying its raw ids so the user can report it.
+/// Classify the snapshots into a normalized, regime-tagged usage against the
+/// production [`HEADLINE_QUOTAS`] table.
 fn normalize_usage(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
+    classify(snapshots, HEADLINE_QUOTAS)
+}
+
+/// Core classification, parameterized on the quota table so tests can exercise
+/// the AI-Credits path with a table that includes a credits id — WITHOUT baking
+/// a guessed id into the shipped [`HEADLINE_QUOTAS`]. Never panics and never
+/// returns "nothing": an unrecognized shape becomes [`CopilotUsage::Unknown`]
+/// carrying its raw ids so the user can report it.
+fn classify(
+    snapshots: &HashMap<String, QuotaSnapshot>,
+    table: &[(&str, Regime, &str)],
+) -> CopilotUsage {
     // 1) First recognized id with a *bounded* quota wins — show real numbers.
-    for (id, regime, label) in HEADLINE_QUOTAS {
+    for (id, regime, label) in table {
         let Some(snap) = snapshots.get(*id) else {
             continue;
         };
@@ -251,7 +266,7 @@ fn normalize_usage(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
     }
 
     // 2) A recognized id exists but is unlimited → say "Unlimited", not blank.
-    for (id, _regime, label) in HEADLINE_QUOTAS {
+    for (id, _regime, label) in table {
         if snapshots.get(*id).map(|s| s.unlimited).unwrap_or(false) {
             return CopilotUsage::Unlimited {
                 label: (*label).to_string(),
@@ -472,27 +487,56 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn credits_regime_classifies_as_ai_credits_when_the_id_is_known() {
+        // Proves the AI-Credits path works once we add the *real* id — without
+        // shipping a guessed id in HEADLINE_QUOTAS. The id here is a test
+        // fixture, NOT a claim about GitHub's actual field name.
+        let table: &[(&str, Regime, &str)] =
+            &[("unconfirmed-credits-id", Regime::Credits, "AI Credits")];
+        let mut snaps = HashMap::new();
+        snaps.insert(
+            "unconfirmed-credits-id".to_string(),
+            QuotaSnapshot {
+                entitlement: 7000.0,
+                quota_remaining: Some(6500.0),
+                remaining: None,
+                percent_remaining: None,
+                overage_count: 0.0,
+                overage_permitted: false,
+                unlimited: false,
+            },
+        );
+        match classify(&snaps, table) {
+            CopilotUsage::AiCredits {
+                included_credits,
+                used,
+                ..
+            } => {
+                assert_eq!(included_credits, 7000.0);
+                assert_eq!(used, 500.0);
+            }
+            other => panic!("expected AiCredits, got {other:?}"),
+        }
+    }
+
     #[tokio::test]
-    async fn new_credits_id_is_classified_as_ai_credits() {
-        // A migrated seat reporting credits under a recognized id.
+    async fn unconfirmed_credits_shape_is_unknown_not_guessed() {
+        // We have NOT confirmed the migrated credits id, so a credits-shaped
+        // payload must surface as Unknown (with raw ids) — never guessed into a
+        // headline number under an "AI Credits" label.
         let (_s, status) = serve(json!({
             "copilot_plan": "pro_plus",
-            "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
-            "quota_snapshots": {
-                "ai_credits": snap(7000.0, 6500.0, false),
-            }
+            "quota_snapshots": { "ai_credits": snap(7000.0, 6500.0, false) }
         }))
         .await;
-
-        assert_eq!(status.plan, "Pro+");
-        let q = &status.quotas[0];
-        assert_eq!(q.label, "AI Credits");
-        assert_eq!(q.total, 7000.0);
-        assert_eq!(q.used, 500.0);
-        assert!(matches!(
-            status.copilot_usage,
-            Some(CopilotUsage::AiCredits { .. })
-        ));
+        match status.copilot_usage {
+            Some(CopilotUsage::Unknown { raw_snapshot_ids }) => {
+                assert_eq!(raw_snapshot_ids, vec!["ai_credits"]);
+            }
+            other => panic!("expected Unknown, got {other:?}"),
+        }
+        assert!(status.quotas.is_empty());
     }
 
     #[tokio::test]

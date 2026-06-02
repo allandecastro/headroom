@@ -11,13 +11,15 @@ All notable changes to Headroom are recorded here. The format follows
 - **Copilot card no longer renders blank after the AI-Credits migration.** GitHub
   moved all Copilot plans from premium requests to usage-based AI Credits on
   2026-06-01, which reshaped the (undocumented) `copilot_internal/user` payload.
-  Parsing is now **regime-aware**: it classifies the headline quota across both
-  the legacy premium-request counter and the new credits object via a single
-  updatable id list — never assuming a plan or hardcoding caps. Quotas with no
-  cap now show **"Unlimited"**, and a shape we don't recognize shows a clear
+  Parsing is now **regime-aware**: it classifies the headline quota only by ids
+  we've actually observed (the legacy premium-request counter and the Free-plan
+  request allowances) — it never assumes a plan or hardcodes caps, and it does
+  **not guess** the new AI-Credits id (added only once a real migrated payload
+  confirms it). Quotas with no cap now show **"Unlimited"**, and any shape we
+  don't recognize — including a not-yet-confirmed credits payload — shows a clear
   **"couldn't read usage"** state with a **Copy diagnostics** action instead of a
-  silent blank. Reset-date parsing gained a defensive fallback chain
-  (`quota_reset_date_utc` → `quota_reset_date` → start of next month).
+  silent blank or a wrong number. Reset-date parsing gained a defensive fallback
+  chain (`quota_reset_date_utc` → `quota_reset_date` → start of next month).
 
 ### Added
 
