@@ -55,6 +55,7 @@ export type CopilotUsage =
     }
   | {
       mode: 'ai_credits_capped'; // usage-based, with a per-seat cap (1 credit = $0.01)
+      label: string; // "AI Credits", or the quota's own name (e.g. "Chat") for a Free request cap
       entitlement: number;
       remaining: number;
       used: number;

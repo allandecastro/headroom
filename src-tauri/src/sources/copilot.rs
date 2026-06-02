@@ -36,13 +36,26 @@ const PREMIUM_INTERACTIONS: &str = "premium_interactions";
 /// completions 2000) while `premium_interactions` is empty. No quota_id is guessed.
 const HEADLINE_PRIORITY: [&str; 3] = [PREMIUM_INTERACTIONS, "chat", "completions"];
 
-/// Display label for a known headline quota id.
+/// Display label for a known headline quota id, **legacy request regime**.
 fn label_for(id: &str) -> &'static str {
     match id {
         "premium_interactions" => "Premium requests",
         "chat" => "Chat",
         "completions" => "Completions",
         _ => "Requests",
+    }
+}
+
+/// Display label under the **AI-Credits regime**: `premium_interactions` is the
+/// credits balance; chat/completions keep their own names (a Free chat cap is
+/// still "Chat", not "AI Credits"), so the variant is AiCreditsCapped but the
+/// row stays honest.
+fn credits_label(id: &str) -> &'static str {
+    match id {
+        "premium_interactions" => "AI Credits",
+        "chat" => "Chat",
+        "completions" => "Completions",
+        _ => "AI Credits",
     }
 }
 
@@ -64,10 +77,13 @@ pub enum CopilotUsage {
         overage_permitted: bool,
         reset_date: DateTime<Utc>,
     },
-    /// AI-Credits balance: `premium_interactions` under `token_based_billing` with
-    /// a real per-seat cap — an individual plan's personal credits (Pro 1000 /
-    /// Pro+ 3900) or a user-level budget. 1 credit = $0.01.
+    /// A bounded quota under `token_based_billing` (AI-Credits regime): an
+    /// individual plan's personal credits (Pro 1000 / Pro+ 3900), a user-level
+    /// budget, or a migrated Free plan's chat/completions cap. 1 credit = $0.01.
+    /// `label` is "AI Credits" for the credits balance, or the quota's own name
+    /// (e.g. "Chat") so a Free request cap isn't mislabeled.
     AiCreditsCapped {
+        label: String,
         entitlement: f64,
         remaining: f64,
         used: f64,
@@ -217,9 +233,11 @@ fn normalize_usage(
     snapshots: &HashMap<String, QuotaSnapshot>,
     reset_date: DateTime<Utc>,
 ) -> CopilotUsage {
-    // 1) First *capped* known quota wins, with real numbers. `premium_interactions`
-    //    under token-based billing is the AI-Credits balance; everything else
-    //    (chat/completions, or legacy premium requests) is a plain request count.
+    // 1) First *capped* known quota wins, with real numbers. The regime is the
+    //    observed `token_based_billing` flag: under AI-Credits billing ANY capped
+    //    headline is AiCreditsCapped (an individual plan's credits, a Free chat
+    //    cap, or a user budget); a legacy seat is PremiumRequests. `label` keeps
+    //    the display accurate (e.g. "Chat" for a Free chat cap, not "AI Credits").
     for id in HEADLINE_PRIORITY {
         let Some(snap) = snapshots.get(id) else {
             continue;
@@ -229,8 +247,9 @@ fn normalize_usage(
         }
         let remaining = snap.effective_remaining();
         let used = (snap.entitlement - remaining).max(0.0);
-        if id == PREMIUM_INTERACTIONS && token_based_billing {
+        if token_based_billing {
             return CopilotUsage::AiCreditsCapped {
+                label: credits_label(id).to_string(),
                 entitlement: snap.entitlement,
                 remaining,
                 used,
@@ -290,13 +309,14 @@ fn usage_to_quotas(usage: &CopilotUsage) -> Vec<Quota> {
             *reset_date,
         )],
         CopilotUsage::AiCreditsCapped {
+            label,
             entitlement,
             used,
             reset_date,
             ..
         } => vec![Quota::new(
             QuotaWindow::Monthly,
-            "AI Credits",
+            label.clone(),
             *used,
             *entitlement,
             QuotaUnit::Requests,
@@ -588,10 +608,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn free_individual_shows_bounded_chat_not_pooled() {
-        // Real migrated Free payload (allandecastro): token_based_billing is true,
-        // but chat/completions are REAL request caps and premium_interactions is
-        // empty. Must surface the bounded chat quota — NOT misclassify as pooled.
+    async fn free_individual_is_ai_credits_capped_via_chat() {
+        // Real migrated Free payload (allandecastro): token_based_billing:true, so
+        // it's the AI-Credits regime; premium_interactions is empty (entitlement 0)
+        // so the first capped quota is the chat cap (200). Audit A1/A2: classifies
+        // as AiCreditsCapped with the chat numbers as headline — NOT pooled, NOT
+        // unknown — and the row label stays honest ("Chat", not "AI Credits").
         let (_s, status) = serve(json!({
             "copilot_plan": "individual",
             "access_type_sku": "free_limited_copilot",
@@ -607,13 +629,32 @@ mod tests {
 
         assert_eq!(status.quotas.len(), 1);
         let q = &status.quotas[0];
-        assert_eq!(q.label, "Chat");
+        assert_eq!(q.label, "Chat"); // A2: headline is the chat quota, honestly labeled
         assert_eq!(q.total, 200.0);
         assert!((q.used - 18.6).abs() < 0.01, "used was {}", q.used);
         match status.copilot_usage {
-            Some(CopilotUsage::PremiumRequests { label, .. }) => assert_eq!(label, "Chat"),
-            other => panic!("expected PremiumRequests(Chat), not pooled — got {other:?}"),
+            // A1: AiCreditsCapped (token-based regime), NOT pooled, NOT unknown.
+            Some(CopilotUsage::AiCreditsCapped {
+                label, entitlement, ..
+            }) => {
+                assert_eq!(label, "Chat");
+                assert_eq!(entitlement, 200.0);
+            }
+            other => panic!("A1: expected AiCreditsCapped(Chat), got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn empty_quota_snapshots_is_unknown_not_blank() {
+        // B2: valid JSON with no quota_snapshots must resolve to a visible Unknown
+        // state (copy-diagnostics), never a blank card or panic.
+        let (_s, status) =
+            serve(json!({ "copilot_plan": "pro", "token_based_billing": true })).await;
+        assert!(status.quotas.is_empty());
+        assert!(matches!(
+            status.copilot_usage,
+            Some(CopilotUsage::Unknown { .. })
+        ));
     }
 
     #[tokio::test]
