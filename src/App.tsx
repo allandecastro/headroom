@@ -66,7 +66,7 @@ export default function App() {
     <div className="min-h-screen bg-window-opaque text-fg-primary">
       <div ref={bodyRef} className="px-3.5 pt-3.5 pb-2.5">
         {!snapshot ? (
-          <div className="text-xs text-fg-tertiary">Loading…</div>
+          <div className="text-xs text-fg-tertiary">Checking usage…</div>
         ) : (
           <>
             {update && !updateDismissed && (

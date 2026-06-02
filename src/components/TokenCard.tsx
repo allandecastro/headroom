@@ -42,10 +42,7 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
   }
 
   if (service.state === 'unreachable' || service.state === 'auth_required') {
-    const summary =
-      service.state === 'auth_required'
-        ? 'Sign in again'
-        : `Couldn't fetch usage${shortHttpStatus(service.error_detail) ? ` · ${shortHttpStatus(service.error_detail)}` : ''}`;
+    const { summary, hint } = errorCopy(service.state, service.error_detail);
     return (
       <section className="py-2">
         {header}
@@ -55,9 +52,7 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
         >
           {summary}
         </div>
-        <div className="mt-0.5 text-2xs text-fg-quaternary">
-          Try “Set up accounts…” → Re-auth, or paste a token under Advanced.
-        </div>
+        {hint && <div className="mt-0.5 text-2xs text-fg-quaternary">{hint}</div>}
       </section>
     );
   }
@@ -111,19 +106,26 @@ function EmptyUsage({ usage }: { usage?: CopilotUsage }) {
 
   if (usage?.mode === 'ai_credits_pooled') {
     // Org-managed pool, no per-seat quota in the payload. Deliberately no bar,
-    // no percentage, no count — those would be misleading here.
+    // no percentage, no count — those would be misleading here. The "why" + CTA
+    // live in the tooltip to keep the menu-bar view short.
     return (
-      <div className="text-2xs text-fg-quaternary">
-        AI Credits · org-managed (pooled) — no individual quota
+      <div title="Ask an admin to set a user-level budget to track your usage here.">
+        <div className="text-2xs text-fg-secondary">Pooled — no individual quota</div>
+        <div className="mt-0.5 text-2xs text-fg-quaternary">
+          Your AI credits are shared at the org level, so there’s no per-user usage to show.
+        </div>
       </div>
     );
   }
   if (usage?.mode === 'unknown') {
     return (
-      <div className="text-2xs text-fg-quaternary" title={usage.raw_snapshot_ids.join(', ')}>
-        Couldn’t read usage — GitHub may have changed the billing format.{' '}
-        <button onClick={copyDiagnostics} className="underline hover:text-fg-secondary">
-          {copyLabel}
+      <div title={usage.raw_snapshot_ids.join(', ')}>
+        <div className="text-2xs text-fg-secondary">Couldn’t read your quota format</div>
+        <button
+          onClick={copyDiagnostics}
+          className="mt-0.5 text-2xs text-fg-quaternary underline hover:text-fg-secondary"
+        >
+          {copyLabel === 'Copy diagnostics' ? 'Copy raw payload' : copyLabel}
         </button>
       </div>
     );
@@ -150,25 +152,22 @@ function QuotaRow({ quota, warnPct, critPct }: { quota: Quota; warnPct: number; 
       <div className="flex items-baseline justify-between text-[11px]">
         <span className="text-fg-secondary">{quota.label}</span>
         <span className="font-mono text-xxs tabular-nums">
-          {quota.unit === 'percent' ? (
-            <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>{pct}%</span>
-          ) : (
-            <>
-              <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>
-                {formatNumber(quota.used, quota.unit)}
-              </span>
-              <span className="text-fg-quaternary">/{formatNumber(quota.total, quota.unit)}</span>
-              {' · '}
-              <span className={state !== 'ok' ? stateClasses.text : ''}>{pct}%</span>
-            </>
-          )}
+          <span className={`font-medium ${state !== 'ok' ? stateClasses.text : ''}`}>{pct}%</span>
         </span>
       </div>
       <div className="h-0.5 my-1 bg-black/10 dark:bg-white/10 overflow-hidden">
         <div className={`h-full ${stateClasses.bar}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
+      {/* Subline: raw remaining/entitlement (no unit word — it differs by quota
+          and isn't reliably known) + reset. Percent quotas have no entitlement,
+          so they keep just the reset. */}
       <div className="text-2xs text-fg-tertiary tabular-nums">
-        {formatResetTime(quota.resets_at)}
+        {quota.unit === 'percent'
+          ? formatResetTime(quota.resets_at)
+          : `${formatNumber(quota.total - quota.used, quota.unit)} / ${formatNumber(
+              quota.total,
+              quota.unit,
+            )} left · resets ${formatResetTime(quota.resets_at)}`}
       </div>
       {(quota.projection || (quota.sparkline?.length ?? 0) >= 2) && (
         <>
@@ -311,10 +310,27 @@ function ExpandedChart({
 }
 
 // "HTTP 404: {body}" → "HTTP 404"; keeps the long body for the tooltip.
-function shortHttpStatus(detail?: string): string | null {
-  if (!detail) return null;
-  const m = detail.match(/^HTTP\s+(\d{3})/i);
-  return m ? `HTTP ${m[1]}` : null;
+// Maps a failed service to a distinct, plain-language status line (+ optional
+// one-line hint). Never empty — every failure mode has its own message, so the
+// card never renders blank or just spins. The raw error_detail goes in a tooltip.
+function errorCopy(
+  state: 'unreachable' | 'auth_required',
+  detail?: string,
+): { summary: string; hint?: string } {
+  if (state === 'auth_required') {
+    return {
+      summary: 'Token expired or invalid — re-authenticate',
+      hint: 'Open “Set up accounts…” → Re-auth, or paste a token under Advanced.',
+    };
+  }
+  const status = detail?.match(/^HTTP\s+(\d{3})/i)?.[1];
+  if (status === '429') return { summary: 'Rate limited by GitHub — try again shortly' };
+  if (status) return { summary: `GitHub returned an error (${status})` };
+  // Network error, timeout, Cloudflare challenge, unparseable response.
+  return {
+    summary: "Couldn't reach GitHub — check your connection",
+    hint: 'Headroom will retry on the next refresh.',
+  };
 }
 
 function relativeFromNow(iso: string): string {
