@@ -6,6 +6,10 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.3.0] — 2026-06-02
+
 ### Added
 
 - **Update notifications.** Headroom checks GitHub for a newer release (on
@@ -16,7 +20,9 @@ All notable changes to Headroom are recorded here. The format follows
   vX →) and a _"Check for updates automatically"_ toggle. It's **notify-only** —
   it links you to the download, it doesn't auto-install (in-app auto-update needs
   code signing). Uses the public Releases API; no token, nothing leaves your
-  machine beyond the version check.
+  machine beyond the version check. ([#32])
+
+[#32]: https://github.com/allandecastro/headroom/pull/32
 
 ## [1.2.1] — 2026-06-02
 
