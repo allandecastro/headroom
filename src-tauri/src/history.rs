@@ -340,9 +340,16 @@ mod tests {
         let rd = h
             .recent_delta("c", QuotaWindow::WeeklyAll, now, 24 * 3600)
             .unwrap();
-        assert!((rd.delta_pct - 4.0).abs() < 0.01, "delta was {}", rd.delta_pct);
+        assert!(
+            (rd.delta_pct - 4.0).abs() < 0.01,
+            "delta was {}",
+            rd.delta_pct
+        );
         assert_eq!(rd.span_secs, now - t0, "span is the full wall-clock window");
-        assert!(rd.low_confidence, "an in-window gap should flag low confidence");
+        assert!(
+            rd.low_confidence,
+            "an in-window gap should flag low confidence"
+        );
     }
 
     #[test]

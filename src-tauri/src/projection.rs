@@ -199,8 +199,16 @@ mod tests {
     fn pace_propagates_low_confidence_flag() {
         let now = Utc::now();
         let resets_at = now + Duration::days(5);
-        assert!(pace(50.0, resets_at, now, 6.0, 86_400, true).unwrap().low_confidence);
-        assert!(!pace(50.0, resets_at, now, 6.0, 86_400, false).unwrap().low_confidence);
+        assert!(
+            pace(50.0, resets_at, now, 6.0, 86_400, true)
+                .unwrap()
+                .low_confidence
+        );
+        assert!(
+            !pace(50.0, resets_at, now, 6.0, 86_400, false)
+                .unwrap()
+                .low_confidence
+        );
     }
 
     #[test]
