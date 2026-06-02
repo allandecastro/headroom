@@ -51,3 +51,9 @@ export interface Snapshot {
   polled_at: number; // Unix timestamp (seconds)
   services: ServiceStatus[];
 }
+
+// Matches src-tauri/src/updates.rs UpdateInfo.
+export interface UpdateInfo {
+  version: string; // latest release version, no leading "v" (e.g. "1.3.0")
+  url: string; // release page to open for the download
+}

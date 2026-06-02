@@ -6,7 +6,17 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Update notifications.** Headroom checks GitHub for a newer release (on
+  launch, then every ~6 hours) and, when one is out, shows a one-time desktop
+  notification plus a dismissible _"Headroom vX.Y.Z available · Download"_ banner
+  in the popover that opens the release page. Settings gains a state-aware
+  _"Check for updates"_ button (on-demand: Checking… → Up to date ✓ / Download
+  vX →) and a _"Check for updates automatically"_ toggle. It's **notify-only** —
+  it links you to the download, it doesn't auto-install (in-app auto-update needs
+  code signing). Uses the public Releases API; no token, nothing leaves your
+  machine beyond the version check.
 
 ## [1.2.1] — 2026-06-02
 

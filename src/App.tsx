@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-shell';
 import { TokenCard } from './components/TokenCard';
-import { openSettings, getSettings } from './lib/ipc';
+import { openSettings, getSettings, getUpdate } from './lib/ipc';
 import type { Settings } from './lib/ipc';
 import { useFitWindowHeight } from './lib/useFitWindow';
-import type { Snapshot } from './lib/api';
+import type { Snapshot, UpdateInfo } from './lib/api';
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -14,6 +15,8 @@ export default function App() {
   // desktop notifications so one knob controls everything.
   const [warnPct, setWarnPct] = useState(80);
   const [critPct, setCritPct] = useState(95);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
   const [, forceTick] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 360, true);
@@ -28,10 +31,16 @@ export default function App() {
         setCritPct(s.notify_crit_pct);
       })
       .catch(console.error);
+    getUpdate().then(setUpdate).catch(console.error);
 
     // Subscribe to backend updates
     const unlistenTokens = listen<Snapshot>('tokens-updated', (event) => {
       setSnapshot(event.payload);
+    });
+    // A newer release was found by the background checker.
+    const unlistenUpdate = listen<UpdateInfo>('update-available', (event) => {
+      setUpdate(event.payload);
+      setUpdateDismissed(false);
     });
     // React instantly to settings changes (Claude Design toggle, threshold sliders).
     const unlistenSettings = listen<Settings>('settings-updated', (event) => {
@@ -46,6 +55,7 @@ export default function App() {
     return () => {
       unlistenTokens.then((fn) => fn());
       unlistenSettings.then((fn) => fn());
+      unlistenUpdate.then((fn) => fn());
       clearInterval(tick);
     };
   }, []);
@@ -59,6 +69,31 @@ export default function App() {
           <div className="text-xs text-fg-tertiary">Loading…</div>
         ) : (
           <>
+            {update && !updateDismissed && (
+              <div className="mb-2.5 flex items-center justify-between gap-2 rounded-[6px] bg-black/[0.04] px-2.5 py-1.5 dark:bg-white/[0.06]">
+                <span className="text-[11px] text-fg-secondary">
+                  <span aria-hidden className="text-state-ok-text dark:text-state-ok-text-dark">
+                    ⬆
+                  </span>{' '}
+                  Headroom v{update.version} available
+                </span>
+                <span className="flex items-center gap-2.5">
+                  <button
+                    onClick={() => open(update.url).catch(console.error)}
+                    className="text-[11px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+                  >
+                    Download
+                  </button>
+                  <button
+                    aria-label="Dismiss update notice"
+                    onClick={() => setUpdateDismissed(true)}
+                    className="text-[12px] leading-none text-fg-tertiary hover:text-fg-secondary"
+                  >
+                    ✕
+                  </button>
+                </span>
+              </div>
+            )}
             {snapshot.services.map((svc) => (
               <TokenCard
                 key={svc.id}

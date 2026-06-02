@@ -217,7 +217,13 @@ Background Tokio task. Default tick: 30s, re-read from settings each cycle. On e
 4. Update tray state (worst-quota percentage drives the tooltip / title).
 5. Run `notify_thresholds()`.
 
+It also runs the **update check** (`maybe_check_update`), throttled to once every ~6h and gated on the `check_updates` setting: on a newer release it caches the result, emits `update-available`, and fires a single desktop notification per version (deduped via `notified_update_version` in settings).
+
 Usage history is recorded here too: each active quota's utilization is sampled into the `history` module (throttled to ~5-minute spacing), persisted to disk, and downsampled into the popover sparkline. From that series the `projection` module derives the **recent-burn-rate pace** for the long (weekly/monthly) windows: `recent_delta` returns Δutilization over the last 24h measured against **wall-clock** (idle time included — the honest basis for a calendar-reset quota, since the reset fires regardless of activity). If the in-window samples straddle a stretch longer than an hour — the app was closed — the rate is being averaged across time we never observed, so the result carries a `low_confidence` flag; the UI shows it muted as _"rough (history gap)"_ and holds back the over-pace warning rather than re-anchoring the lookback (anchoring to the post-reopen burst would over-state the daily rate whenever the gap was just idle sleep).
+
+### `updates`
+
+Notify-only update checker. `UpdateChecker::check()` queries `GET https://api.github.com/repos/allandecastro/headroom/releases/latest` (public, no token; a User-Agent is required) and compares the `tag_name` to the compile-time `CARGO_PKG_VERSION` via a `major.minor.patch` semver compare (`is_newer`, tolerant of a `v` prefix and pre-release suffixes). Returns `UpdateInfo { version, url }` when the remote is strictly newer, else `None`; drafts/prereleases are ignored. Surfaced to the renderer through the `get_update` / `check_for_update_now` IPC commands and the `update-available` event. It never downloads or installs — that needs code signing (deferred).
 
 ### `tray`
 

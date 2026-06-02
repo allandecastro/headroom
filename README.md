@@ -69,6 +69,7 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 - **Magic sign-in for both** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; **Copilot** has _"Sign in with GitHub"_ (OAuth device flow — enter a short code, no token to create). Each has a paste fallback under _Advanced_ (a Claude session key, or any GitHub token). The plan and quota cap are read from your account (see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
+- **Update notifications** — checks GitHub for newer releases (on launch + every ~6h) and surfaces a one-time desktop alert plus a "Download" banner in the popover; check on demand or toggle it off in Settings. Notify-only — it links you to the download, it doesn't auto-install.
 - **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
 - **Live theme switching** (auto / light / dark) and a popover that auto-fits its content above the taskbar.
 
