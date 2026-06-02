@@ -8,6 +8,37 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.3.2] — 2026-06-02
+
+### Fixed
+
+- **Migrated individual seats now classify as AI Credits, not request counts.**
+  Under `token_based_billing`, **any** capped headline quota is treated as the
+  AI-Credits regime (`AiCreditsCapped`) — covering an individual plan's personal
+  credits, a user-level budget, or a Free plan's chat cap — while a legacy
+  (non-token-based) seat stays `PremiumRequests`. Previously only
+  `premium_interactions` was routed to credits, so a migrated Free seat showed as
+  a plain request count. The row label stays honest (e.g. a Free chat cap shows
+  "Chat", not "AI Credits"). ([#37])
+
+### Changed
+
+- **Clear copy for every Copilot quota state — nothing renders blank.** ([#38])
+  - **Capped** rows show the bar + percent with a `"{remaining} / {entitlement}
+    left · resets …"` subline (raw numbers only — no hardcoded unit word, since
+    the unit varies by quota and plan).
+  - **Pooled** org seats read _"Pooled — no individual quota"_ with a one-line
+    explanation and an admin-budget hint in the tooltip.
+  - **Unrecognized** payloads read _"Couldn't read your quota format"_ and keep
+    the "Copy raw payload" action.
+  - **Failure states** each get their own line instead of one generic message:
+    expired/invalid token → _"re-authenticate"_, offline/timeout → _"check your
+    connection"_, rate-limited (429) → _"try again shortly"_, other errors →
+    _"GitHub returned an error (status)"_. Loading reads _"Checking usage…"_.
+
+[#37]: https://github.com/allandecastro/headroom/pull/37
+[#38]: https://github.com/allandecastro/headroom/pull/38
+
 ## [1.3.1] — 2026-06-02
 
 ### Fixed
