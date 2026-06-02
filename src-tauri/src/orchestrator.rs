@@ -80,15 +80,16 @@ pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
                     // Recent-burn-rate pace, only for the long (weekly/monthly)
                     // windows where a 24h delta is meaningful.
                     if is_long_window(quota.window) {
-                        if let Some((delta_pct, delta_secs)) =
+                        if let Some(rd) =
                             history.recent_delta(&id, quota.window, now_secs, 24 * 3600)
                         {
                             quota.pace = crate::projection::pace(
                                 used_pct,
                                 quota.resets_at,
                                 now,
-                                delta_pct,
-                                delta_secs,
+                                rd.delta_pct,
+                                rd.span_secs,
+                                rd.low_confidence,
                             );
                         }
                     }

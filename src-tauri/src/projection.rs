@@ -29,6 +29,9 @@ pub struct Pace {
     pub safe_pace: f64,
     /// `true` when `daily_rate > safe_pace` — you'll hit the cap early if this continues.
     pub over_pace: bool,
+    /// `true` when the backing history straddled an app-closed gap, so the rate
+    /// is averaged across unobserved time — shown, but flagged tentative.
+    pub low_confidence: bool,
 }
 
 impl QuotaWindow {
@@ -105,6 +108,7 @@ pub fn pace(
     now: DateTime<Utc>,
     recent_delta_pct: f64,
     recent_delta_secs: i64,
+    low_confidence: bool,
 ) -> Option<Pace> {
     if used_pct >= 100.0 || recent_delta_secs <= 0 || recent_delta_pct < 0.0 {
         return None;
@@ -120,6 +124,7 @@ pub fn pace(
         daily_rate,
         safe_pace,
         over_pace: daily_rate > safe_pace,
+        low_confidence,
     })
 }
 
@@ -180,25 +185,33 @@ mod tests {
         // Δ of 6%/24h ≈ 6%/day → over the 10%/day safe pace? No, 6 < 10 — within.
         let now = Utc::now();
         let resets_at = now + Duration::days(5);
-        let within = pace(50.0, resets_at, now, 6.0, 86_400).unwrap();
+        let within = pace(50.0, resets_at, now, 6.0, 86_400, false).unwrap();
         assert!((within.safe_pace - 10.0).abs() < 0.01);
         assert!((within.daily_rate - 6.0).abs() < 0.01);
         assert!(!within.over_pace);
 
         // Δ of 15%/24h → 15%/day → over the 10%/day safe pace.
-        let over = pace(50.0, resets_at, now, 15.0, 86_400).unwrap();
+        let over = pace(50.0, resets_at, now, 15.0, 86_400, false).unwrap();
         assert!(over.over_pace);
+    }
+
+    #[test]
+    fn pace_propagates_low_confidence_flag() {
+        let now = Utc::now();
+        let resets_at = now + Duration::days(5);
+        assert!(pace(50.0, resets_at, now, 6.0, 86_400, true).unwrap().low_confidence);
+        assert!(!pace(50.0, resets_at, now, 6.0, 86_400, false).unwrap().low_confidence);
     }
 
     #[test]
     fn pace_returns_none_when_already_exhausted_or_past_reset() {
         let now = Utc::now();
         // Already at 100%.
-        assert!(pace(100.0, now + Duration::days(3), now, 5.0, 3600).is_none());
+        assert!(pace(100.0, now + Duration::days(3), now, 5.0, 3600, false).is_none());
         // Past reset.
-        assert!(pace(50.0, now - Duration::hours(1), now, 5.0, 3600).is_none());
+        assert!(pace(50.0, now - Duration::hours(1), now, 5.0, 3600, false).is_none());
         // Degenerate delta.
-        assert!(pace(50.0, now + Duration::days(3), now, -1.0, 3600).is_none());
-        assert!(pace(50.0, now + Duration::days(3), now, 5.0, 0).is_none());
+        assert!(pace(50.0, now + Duration::days(3), now, -1.0, 3600, false).is_none());
+        assert!(pace(50.0, now + Duration::days(3), now, 5.0, 0, false).is_none());
     }
 }

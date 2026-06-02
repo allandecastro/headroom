@@ -21,6 +21,18 @@ pub struct Sample {
     pub used_pct: f64,
 }
 
+/// A recent-burn-rate measurement from [`History::recent_delta`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RecentDelta {
+    /// Utilization consumed over the span (percentage points).
+    pub delta_pct: f64,
+    /// Wall-clock span the delta covers, in seconds.
+    pub span_secs: i64,
+    /// The lookback straddled an app-closed gap, so the rate is averaged across
+    /// unobserved time — surface it as tentative.
+    pub low_confidence: bool,
+}
+
 /// History older than this is dropped (in memory and from the file on load).
 const RETENTION_DAYS: i64 = 30;
 /// Minimum spacing between recorded samples per series, so a 30s poll interval
@@ -28,6 +40,11 @@ const RETENTION_DAYS: i64 = 30;
 const MIN_INTERVAL_SECS: i64 = 300; // 5 minutes
 /// How many points a sparkline is downsampled to.
 const SPARK_POINTS: usize = 24;
+/// Inter-sample spacing above which the series is treated as having a gap — the
+/// app was closed. Far above the 5-minute sampling cadence, so a normal run
+/// never trips it. A delta whose lookback straddles such a gap is averaged
+/// across time we didn't observe, so it's reported but flagged low-confidence.
+const GAP_THRESHOLD_SECS: i64 = 3600; // 1 hour
 
 fn series_key(service: &str, window: QuotaWindow) -> String {
     format!("{service}:{window:?}")
@@ -95,22 +112,30 @@ impl History {
         Some(sample)
     }
 
-    /// Δutilization over the last `lookback_secs` for a series, as
-    /// `(used_pct_delta, elapsed_secs)`. Returns `None` when there aren't
-    /// enough samples in the window or the window straddled a reset (delta
-    /// would go negative).
+    /// Δutilization over the last `lookback_secs` for a series. Returns `None`
+    /// when there aren't enough samples in the window or the window straddled a
+    /// reset (delta would go negative).
+    ///
+    /// The delta is measured over wall-clock — `Δusage / elapsed`, idle time
+    /// included — which is the honest pace for a calendar-reset quota (the reset
+    /// fires regardless of activity). If the in-window samples contain a stretch
+    /// longer than [`GAP_THRESHOLD_SECS`] (the app was closed), the rate is being
+    /// averaged across time we didn't observe, so [`RecentDelta::low_confidence`]
+    /// is set and the value is surfaced as tentative rather than re-anchored —
+    /// re-anchoring to the post-reopen burst would over-state the daily rate
+    /// whenever the gap was just idle sleep.
     pub fn recent_delta(
         &self,
         service: &str,
         window: QuotaWindow,
         now: i64,
         lookback_secs: i64,
-    ) -> Option<(f64, i64)> {
+    ) -> Option<RecentDelta> {
         let series = self.series.get(&series_key(service, window))?;
         let since = now - lookback_secs;
-        let mut in_window = series.iter().filter(|s| s.ts >= since);
-        let first = in_window.next()?;
-        let last = series.last()?;
+        let in_window: Vec<&Sample> = series.iter().filter(|s| s.ts >= since).collect();
+        let first = *in_window.first()?;
+        let last = *in_window.last()?;
         let dt = last.ts - first.ts;
         if dt <= 0 {
             return None;
@@ -119,7 +144,14 @@ impl History {
         if delta < 0.0 {
             return None; // window reset mid-lookback — delta is meaningless
         }
-        Some((delta, dt))
+        let low_confidence = in_window
+            .windows(2)
+            .any(|pair| pair[1].ts - pair[0].ts > GAP_THRESHOLD_SECS);
+        Some(RecentDelta {
+            delta_pct: delta,
+            span_secs: dt,
+            low_confidence,
+        })
     }
 
     /// Downsampled utilization series within the current window, for a sparkline.
@@ -257,15 +289,16 @@ mod tests {
     fn recent_delta_returns_delta_and_span_within_lookback() {
         let mut h = History::default();
         let t0 = 1_000_000;
-        // Series: 10% (24h ago), 15% (12h ago), 22% (now). Lookback 24h covers all three.
+        // A continuous run (samples ≤ the gap threshold apart): 10% → 16% → 22%
+        // over 1h. Lookback 24h covers all three; delta is 12% across the span.
         h.record("c", QuotaWindow::WeeklyAll, 10.0, t0);
-        h.record("c", QuotaWindow::WeeklyAll, 15.0, t0 + 12 * 3600);
-        h.record("c", QuotaWindow::WeeklyAll, 22.0, t0 + 24 * 3600);
-        let (delta, span) = h
-            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 24 * 3600, 24 * 3600)
+        h.record("c", QuotaWindow::WeeklyAll, 16.0, t0 + 30 * 60);
+        h.record("c", QuotaWindow::WeeklyAll, 22.0, t0 + 60 * 60);
+        let rd = h
+            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 60 * 60, 24 * 3600)
             .unwrap();
-        assert!((delta - 12.0).abs() < 0.01);
-        assert_eq!(span, 24 * 3600);
+        assert!((rd.delta_pct - 12.0).abs() < 0.01);
+        assert_eq!(rd.span_secs, 60 * 60);
     }
 
     #[test]
@@ -289,5 +322,40 @@ mod tests {
         assert!(h
             .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 30 * 60, 3600)
             .is_none());
+    }
+
+    #[test]
+    fn recent_delta_keeps_wall_clock_slope_but_flags_a_gap() {
+        let mut h = History::default();
+        let t0 = 1_000_000;
+        // A little burn, then the app is closed 8h (idle sleep), then it reopens.
+        // The honest slope is the wall-clock delta across the whole span; we do
+        // NOT re-anchor to the post-reopen burst (that would over-state the daily
+        // rate for an idle gap). The gap just flags the result low-confidence.
+        h.record("c", QuotaWindow::WeeklyAll, 10.0, t0);
+        h.record("c", QuotaWindow::WeeklyAll, 12.0, t0 + 5 * 60);
+        h.record("c", QuotaWindow::WeeklyAll, 12.0, t0 + 8 * 3600);
+        h.record("c", QuotaWindow::WeeklyAll, 14.0, t0 + 8 * 3600 + 30 * 60);
+        let now = t0 + 8 * 3600 + 30 * 60;
+        let rd = h
+            .recent_delta("c", QuotaWindow::WeeklyAll, now, 24 * 3600)
+            .unwrap();
+        assert!((rd.delta_pct - 4.0).abs() < 0.01, "delta was {}", rd.delta_pct);
+        assert_eq!(rd.span_secs, now - t0, "span is the full wall-clock window");
+        assert!(rd.low_confidence, "an in-window gap should flag low confidence");
+    }
+
+    #[test]
+    fn recent_delta_continuous_run_is_high_confidence() {
+        let mut h = History::default();
+        let t0 = 1_000_000;
+        // Samples ≤ the gap threshold apart — no gap, so high confidence.
+        h.record("c", QuotaWindow::WeeklyAll, 10.0, t0);
+        h.record("c", QuotaWindow::WeeklyAll, 16.0, t0 + 30 * 60);
+        h.record("c", QuotaWindow::WeeklyAll, 22.0, t0 + 60 * 60);
+        let rd = h
+            .recent_delta("c", QuotaWindow::WeeklyAll, t0 + 60 * 60, 24 * 3600)
+            .unwrap();
+        assert!(!rd.low_confidence);
     }
 }

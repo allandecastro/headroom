@@ -200,13 +200,17 @@ function ExpandedChart({
       {pace && (
         <div
           className={`mb-1.5 text-[10.5px] tabular-nums ${
-            pace.over_pace ? 'text-state-warn-text-dark' : 'text-fg-tertiary'
+            pace.over_pace && !pace.low_confidence
+              ? 'text-state-warn-text-dark'
+              : 'text-fg-tertiary'
           }`}
         >
-          Burning {Math.round(pace.daily_rate)}%/day
+          Burning {pace.low_confidence ? '~' : ''}
+          {Math.round(pace.daily_rate)}%/day
           {pace.over_pace
             ? ` — over the ${Math.round(pace.safe_pace)}%/day safe pace`
             : ` · ${Math.round(pace.safe_pace)}%/day keeps you on track`}
+          {pace.low_confidence && ' · rough (history gap)'}
         </div>
       )}
       <div className={colorClass}>
