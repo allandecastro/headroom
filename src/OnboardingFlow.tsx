@@ -25,7 +25,7 @@ export default function OnboardingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-window-opaque text-fg-primary">
+    <div className="h-screen overflow-y-auto bg-window-opaque text-fg-primary">
       <div ref={bodyRef} className="px-6 pt-6 pb-5">
         <h1 className="mb-1 text-[17px] font-medium tracking-[-0.01em]">Connect your services</h1>
         <p className="mb-[18px] text-[12px] leading-normal text-fg-tertiary">

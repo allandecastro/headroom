@@ -294,7 +294,7 @@ export default function SettingsPanel() {
   const copilotSvc = snapshot?.services.find((s) => s.id === 'copilot');
 
   return (
-    <div className="min-h-screen bg-window-opaque text-fg-primary">
+    <div className="h-screen overflow-y-auto bg-window-opaque text-fg-primary">
       <div ref={bodyRef} className="px-[22px] pt-[18px] pb-4">
         {/* POLLING */}
         <Group label="Polling">
