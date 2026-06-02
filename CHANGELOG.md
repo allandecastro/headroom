@@ -6,6 +6,10 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.3.1] — 2026-06-02
+
 ### Fixed
 
 - **Copilot card no longer renders blank after the AI-Credits migration.** GitHub
