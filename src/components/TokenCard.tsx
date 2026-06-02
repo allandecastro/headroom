@@ -109,10 +109,12 @@ function EmptyUsage({ usage }: { usage?: CopilotUsage }) {
           ? 'Copy failed'
           : 'Copy diagnostics';
 
-  if (usage?.mode === 'unlimited') {
+  if (usage?.mode === 'ai_credits_pooled') {
+    // Org-managed pool, no per-seat quota in the payload. Deliberately no bar,
+    // no percentage, no count — those would be misleading here.
     return (
       <div className="text-2xs text-fg-quaternary">
-        {usage.label} — unlimited, no metered cap on this plan
+        AI Credits · org-managed (pooled) — no individual quota
       </div>
     );
   }

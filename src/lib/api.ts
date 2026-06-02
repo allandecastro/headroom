@@ -44,26 +44,27 @@ export interface Quota {
 // must render every case — including `unknown` — and degrade gracefully.
 export type CopilotUsage =
   | {
-      mode: 'premium_requests'; // legacy request counter, or Free chat/completions
-      label: string;
+      mode: 'premium_requests'; // legacy request-based billing (grandfathered annual)
       entitlement: number;
       remaining: number;
       used: number;
-      percent_remaining?: number;
+      percent_remaining: number | null;
       overage_permitted: boolean;
-      overage_count: number;
+      reset_date: string; // ISO 8601
     }
   | {
-      mode: 'ai_credits'; // new usage-based credits (1 credit = $0.01)
-      label: string;
-      included_credits: number;
-      credits_remaining: number;
+      mode: 'ai_credits_capped'; // usage-based, with a per-seat cap (1 credit = $0.01)
+      entitlement: number;
+      remaining: number;
       used: number;
-      percent_remaining?: number;
+      percent_remaining: number | null;
       overage_permitted: boolean;
-      overage_count: number;
+      reset_date: string;
     }
-  | { mode: 'unlimited'; label: string }
+  | {
+      mode: 'ai_credits_pooled'; // usage-based, no per-seat cap (org pool) — show no bar/count
+      reset_date: string;
+    }
   | { mode: 'unknown'; raw_snapshot_ids: string[] };
 
 export interface ServiceStatus {

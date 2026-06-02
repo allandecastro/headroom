@@ -162,9 +162,20 @@ export type CopilotUsage = CreditsUsage | LegacyRequestUsage;
 
 ---
 
-## 5. Open questions — confirm against a real Pro+ account
+## CONFIRMED — real migrated **Business** payload (2026-06-02)
 
-1. **`copilot_internal/user` post-migration shape:** is the headline quota still `quota_id: "premium_interactions"`, or renamed (e.g. credits/dollar-denominated)? Does it expose credits `entitlement`/`remaining` at all for the new regime? *(Capture the raw JSON — this also settles the blank-Business-card bug.)*
+A real Business seat (`copilot_plan: "business"`, `access_type_sku: "copilot_for_business_seat_quota"`) returned:
+
+- **`token_based_billing: true`** at top level (and per snapshot) — the regime discriminator. Headroom now keys on this, not a guessed id.
+- `quota_snapshots` = `chat`, `completions`, `premium_interactions` — **no `ai_credits`/`credits` id exists**. `premium_interactions` is the metered one (**`has_quota: true`**; chat/completions `has_quota: false`).
+- On this seat `premium_interactions` is **`unlimited: true, entitlement: 0, remaining: 0, overage_permitted: true`** — i.e. **`copilot_internal/user` carries NO per-seat credit balance** for an org seat with no user budget. New fields seen: `has_quota`, `token_based_billing`, `quota_reset_at`, `timestamp_utc`.
+- Both `quota_reset_date` ("2026-07-01") **and** `quota_reset_date_utc` present.
+
+**Implication:** for Business/Enterprise seats, the live credit balance is **not** in this endpoint — Headroom shows an honest "AI Credits · usage-based — no per-seat cap" state, and the actual consumption must come from the billing usage API (§2). Confirmed: never blank, never fabricate a number.
+
+## 5. Open questions — still need a real **Pro+ (individual)** account
+
+1. **Does an individual Pro/Pro+ migrated `copilot_internal/user` expose a credit balance?** Business doesn't (shared pool). An individual has a fixed monthly allowance, so its `premium_interactions` (or another `has_quota` snapshot) *might* be bounded with real `entitlement`/`quota_remaining` — if so Headroom renders the numeric AI-Credits row automatically (path already coded + tested). **Capture a Pro+ raw payload to confirm.**
 2. **User billing endpoint auth:** does `GET /users/{me}/settings/billing/usage` work with your **own** classic PAT, and which exact scope (`manage_billing:copilot`? a new `Plan` scope?)? Confirm fine-grained really fails and you can only query your own username.
 3. **Freshness:** how stale is the user usage endpoint — minutes, or up to a day? (Decides whether it can drive the live gauge or only a daily "consumed" figure.)
 4. **Allocations:** confirm Pro = 1,000 (+500 flex?) and Pro+ = 3,900 (+3,100 flex?) — is "flex" permanent or the Jun–Aug promo? Do individuals get any promo at all?

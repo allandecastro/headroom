@@ -11,15 +11,20 @@ All notable changes to Headroom are recorded here. The format follows
 - **Copilot card no longer renders blank after the AI-Credits migration.** GitHub
   moved all Copilot plans from premium requests to usage-based AI Credits on
   2026-06-01, which reshaped the (undocumented) `copilot_internal/user` payload.
-  Parsing is now **regime-aware**: it classifies the headline quota only by ids
-  we've actually observed (the legacy premium-request counter and the Free-plan
-  request allowances) — it never assumes a plan or hardcodes caps, and it does
-  **not guess** the new AI-Credits id (added only once a real migrated payload
-  confirms it). Quotas with no cap now show **"Unlimited"**, and any shape we
-  don't recognize — including a not-yet-confirmed credits payload — shows a clear
-  **"couldn't read usage"** state with a **Copy diagnostics** action instead of a
-  silent blank or a wrong number. Reset-date parsing gained a defensive fallback
-  chain (`quota_reset_date_utc` → `quota_reset_date` → start of next month).
+  Parsing is now **regime-aware**, driven by fields confirmed in real payloads —
+  never guessed. The **`token_based_billing`** flag selects the regime and the
+  usage normalizes into one of four cases: **premium requests** (legacy
+  grandfathered cap), **AI Credits — capped** (usage-based with a per-seat
+  cap, e.g. an individual plan's included credits), **AI Credits — pooled**
+  (org/Business seat drawing from a shared org pool: credits aren't exposed
+  per-user, so it renders _"org-managed (pooled) — no individual quota"_ with
+  **no bar and no count** — the `percent_remaining: 100` / `remaining: 0` that
+  this payload reports would otherwise be a misleading full-or-empty bar), and
+  **unknown** (unrecognized shape → _"couldn't read usage"_ + **Copy
+  diagnostics**). The headline quota is `premium_interactions` (or any `has_quota`
+  snapshot), never the always-unlimited chat/completions. No plan assumptions, no
+  hardcoded caps. Reset-date parsing uses a defensive fallback chain
+  (`quota_reset_date_utc` → `quota_reset_date` → start of next month).
 
 ### Added
 

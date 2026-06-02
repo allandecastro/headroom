@@ -27,72 +27,48 @@ use crate::credentials::Credentials;
 
 const DEFAULT_BASE_URL: &str = "https://api.github.com";
 
-/// Billing regime a quota snapshot represents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Regime {
-    /// New usage-based AI Credits (default after 2026-06-01). Intentionally NOT
-    /// wired to a quota id yet — we have never observed a migrated payload, and
-    /// we do not guess the id. It joins [`HEADLINE_QUOTAS`] only once a real
-    /// payload confirms it (via Copy diagnostics). Constructed in tests to prove
-    /// the path works.
-    #[allow(dead_code)]
-    Credits,
-    /// Request-counting quota: legacy premium requests (grandfathered annual
-    /// plans) and the Free plan's chat/completions allowances.
-    Requests,
-}
+/// The quota that holds the metered budget across regimes. `chat`/`completions`
+/// are deliberately ignored as headline candidates — they're always `unlimited`.
+/// When `premium_interactions` is absent we fall back to any `has_quota` snapshot
+/// (never chat/completions). No quota_id is ever guessed.
+const HEADLINE_QUOTA_ID: &str = "premium_interactions";
 
-/// Quota ids we know how to surface, **headline priority first**, each tagged
-/// with the billing regime it represents and the label to show.
-///
-/// ⚠️ Every id here is one we have **actually observed** in a real payload — we
-/// do **not** guess. The endpoint is undocumented and changed with the
-/// 2026-06-01 AI-Credits migration; we have not yet seen a migrated payload, so
-/// the new AI-Credits id is **deliberately absent**. Until a real one is
-/// captured (via the "Copy Copilot diagnostics" action — see
-/// [`CopilotSource::fetch_raw`]), a credits-only seat falls through to
-/// [`CopilotUsage::Unknown`] carrying its raw ids — surfaced for reporting,
-/// never mis-shown under a guessed label. Add the confirmed id (with
-/// [`Regime::Credits`]) here once the real payload lands.
-const HEADLINE_QUOTAS: &[(&str, Regime, &str)] = &[
-    // Legacy premium-request counter (grandfathered annual plans).
-    ("premium_interactions", Regime::Requests, "Premium requests"),
-    // Free-plan request allowances.
-    ("chat", Regime::Requests, "Chat"),
-    ("completions", Regime::Requests, "Completions"),
-];
-
-/// Normalized Copilot usage, tagged on billing regime so the UI can render any
-/// case and we degrade gracefully when GitHub changes the shape again.
+/// Normalized Copilot usage, tagged on billing regime so the UI can render every
+/// case and we degrade gracefully when GitHub changes the shape again. Regime is
+/// read from the observed `token_based_billing` flag — never guessed.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum CopilotUsage {
-    /// Request-counting quota (legacy premium requests, or Free chat/completions).
+    /// Legacy request-based billing (`token_based_billing` absent/false) with a
+    /// real cap — grandfathered annual Pro/Pro+ plans.
     PremiumRequests {
-        label: String,
         entitlement: f64,
         remaining: f64,
         used: f64,
-        #[serde(skip_serializing_if = "Option::is_none")]
         percent_remaining: Option<f64>,
         overage_permitted: bool,
-        overage_count: f64,
+        reset_date: DateTime<Utc>,
     },
-    /// New usage-based AI Credits (1 credit = $0.01).
-    AiCredits {
-        label: String,
-        included_credits: f64,
-        credits_remaining: f64,
+    /// AI-Credits regime (`token_based_billing: true`) with a per-seat cap — a
+    /// user-level budget is set, or an individual plan carries personal credits
+    /// (Pro 1000 / Pro+ 3900). 1 credit = $0.01.
+    AiCreditsCapped {
+        entitlement: f64,
+        remaining: f64,
         used: f64,
-        #[serde(skip_serializing_if = "Option::is_none")]
         percent_remaining: Option<f64>,
         overage_permitted: bool,
-        overage_count: f64,
+        reset_date: DateTime<Utc>,
     },
-    /// A recognized quota that has no enforced cap.
-    Unlimited { label: String },
-    /// Nothing we recognize — carries the raw snapshot ids so the user can
-    /// report the new shape (and we extend [`HEADLINE_QUOTAS`]).
+    /// AI-Credits regime with **no per-seat cap** — the credits live at the org
+    /// level (pooled Business/Enterprise seat, no user budget) and are NOT exposed
+    /// per-user in this payload. Renders "Org-managed (pooled) — no individual
+    /// quota": never blank, never "Unlimited", never a 100%/0 bar. Carries no
+    /// number precisely because `percent_remaining: 100 / remaining: 0` here is
+    /// meaningless.
+    AiCreditsPooled { reset_date: DateTime<Utc> },
+    /// Nothing we recognize — carries the raw snapshot ids so the user can report
+    /// the new shape (and the UI offers "copy raw payload").
     Unknown { raw_snapshot_ids: Vec<String> },
 }
 
@@ -158,8 +134,8 @@ impl CopilotSource {
 
         let now = Utc::now();
         let resets_at = parse_reset(&body, now);
-        let usage = normalize_usage(&body.quota_snapshots);
-        let quotas = usage_to_quotas(&usage, resets_at);
+        let usage = normalize_usage(body.token_based_billing, &body.quota_snapshots, resets_at);
+        let quotas = usage_to_quotas(&usage);
 
         Ok(ServiceStatus {
             id: "copilot".into(),
@@ -217,70 +193,62 @@ impl QuotaSource for CopilotSource {
     }
 }
 
-/// Classify the snapshots into a normalized, regime-tagged usage against the
-/// production [`HEADLINE_QUOTAS`] table.
-fn normalize_usage(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
-    classify(snapshots, HEADLINE_QUOTAS)
+/// Classify the snapshots into a normalized, regime-tagged usage. Regime is read
+/// from the observed `token_based_billing` flag — never guessed. Never panics and
+/// never returns "nothing": an unrecognized shape becomes [`CopilotUsage::Unknown`]
+/// carrying its raw ids so the user can report it.
+fn normalize_usage(
+    token_based_billing: bool,
+    snapshots: &HashMap<String, QuotaSnapshot>,
+    reset_date: DateTime<Utc>,
+) -> CopilotUsage {
+    let headline = headline_quota(snapshots);
+    if token_based_billing {
+        // AI-Credits regime: capped if the headline carries a real per-seat cap,
+        // otherwise pooled (org credits, not exposed per-user — the Business case).
+        match headline {
+            Some(snap) if snap.is_capped() => CopilotUsage::AiCreditsCapped {
+                entitlement: snap.entitlement,
+                remaining: snap.effective_remaining(),
+                used: (snap.entitlement - snap.effective_remaining()).max(0.0),
+                percent_remaining: snap.percent_remaining,
+                overage_permitted: snap.overage_permitted,
+                reset_date,
+            },
+            _ => CopilotUsage::AiCreditsPooled { reset_date },
+        }
+    } else {
+        // Legacy request-based regime: a real cap → PremiumRequests; else Unknown
+        // (we never promote the always-unlimited chat/completions to a headline).
+        match headline {
+            Some(snap) if snap.is_capped() => CopilotUsage::PremiumRequests {
+                entitlement: snap.entitlement,
+                remaining: snap.effective_remaining(),
+                used: (snap.entitlement - snap.effective_remaining()).max(0.0),
+                percent_remaining: snap.percent_remaining,
+                overage_permitted: snap.overage_permitted,
+                reset_date,
+            },
+            _ => unknown(snapshots),
+        }
+    }
 }
 
-/// Core classification, parameterized on the quota table so tests can exercise
-/// the AI-Credits path with a table that includes a credits id — WITHOUT baking
-/// a guessed id into the shipped [`HEADLINE_QUOTAS`]. Never panics and never
-/// returns "nothing": an unrecognized shape becomes [`CopilotUsage::Unknown`]
-/// carrying its raw ids so the user can report it.
-fn classify(
-    snapshots: &HashMap<String, QuotaSnapshot>,
-    table: &[(&str, Regime, &str)],
-) -> CopilotUsage {
-    // 1) First recognized id with a *bounded* quota wins — show real numbers.
-    for (id, regime, label) in table {
-        let Some(snap) = snapshots.get(*id) else {
-            continue;
-        };
-        if !snap.is_bounded() {
-            continue;
-        }
-        let entitlement = snap.entitlement;
-        let remaining = snap.effective_remaining();
-        let used = (entitlement - remaining).max(0.0);
-        return match regime {
-            Regime::Credits => CopilotUsage::AiCredits {
-                label: (*label).to_string(),
-                included_credits: entitlement,
-                credits_remaining: remaining,
-                used,
-                percent_remaining: snap.percent_remaining,
-                overage_permitted: snap.overage_permitted,
-                overage_count: snap.overage_count,
-            },
-            Regime::Requests => CopilotUsage::PremiumRequests {
-                label: (*label).to_string(),
-                entitlement,
-                remaining,
-                used,
-                percent_remaining: snap.percent_remaining,
-                overage_permitted: snap.overage_permitted,
-                overage_count: snap.overage_count,
-            },
-        };
+/// The headline quota holder: `premium_interactions` by priority, else any
+/// `has_quota` snapshot — but **never** `chat`/`completions` (always unlimited).
+/// Selected by observed fields, no quota_id guessing.
+fn headline_quota(snapshots: &HashMap<String, QuotaSnapshot>) -> Option<&QuotaSnapshot> {
+    if let Some(snap) = snapshots.get(HEADLINE_QUOTA_ID) {
+        return Some(snap);
     }
+    snapshots
+        .iter()
+        .filter(|(id, _)| id.as_str() != "chat" && id.as_str() != "completions")
+        .map(|(_, snap)| snap)
+        .find(|snap| snap.has_quota)
+}
 
-    // 2) A recognized id exists but is unlimited → say "Unlimited", not blank.
-    for (id, _regime, label) in table {
-        if snapshots.get(*id).map(|s| s.unlimited).unwrap_or(false) {
-            return CopilotUsage::Unlimited {
-                label: (*label).to_string(),
-            };
-        }
-    }
-
-    // 3) Nothing recognized. If every present snapshot is unlimited, it's a
-    //    genuinely uncapped plan; otherwise surface the raw ids to report.
-    if !snapshots.is_empty() && snapshots.values().all(|s| s.unlimited) {
-        return CopilotUsage::Unlimited {
-            label: "Copilot".to_string(),
-        };
-    }
+fn unknown(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
     let mut ids: Vec<String> = snapshots.keys().cloned().collect();
     ids.sort();
     CopilotUsage::Unknown {
@@ -288,38 +256,39 @@ fn classify(
     }
 }
 
-/// Map the normalized usage to renderable quota rows. Numeric regimes produce a
-/// single Monthly row (so history/sparkline/projection keep working); Unlimited
-/// and Unknown produce no row — the UI renders them from `copilot_usage`.
-fn usage_to_quotas(usage: &CopilotUsage, resets_at: DateTime<Utc>) -> Vec<Quota> {
+/// Map the normalized usage to renderable quota rows. The two capped regimes
+/// produce a single Monthly row (so history/sparkline/projection keep working);
+/// pooled and unknown produce no row — the UI renders those from `copilot_usage`,
+/// deliberately without a percentage or count.
+fn usage_to_quotas(usage: &CopilotUsage) -> Vec<Quota> {
     match usage {
-        CopilotUsage::AiCredits {
-            label,
-            included_credits,
-            used,
-            ..
-        } => vec![Quota::new(
-            QuotaWindow::Monthly,
-            label.clone(),
-            *used,
-            *included_credits,
-            QuotaUnit::Requests,
-            resets_at,
-        )],
         CopilotUsage::PremiumRequests {
-            label,
             entitlement,
             used,
+            reset_date,
             ..
         } => vec![Quota::new(
             QuotaWindow::Monthly,
-            label.clone(),
+            "Premium requests",
             *used,
             *entitlement,
             QuotaUnit::Requests,
-            resets_at,
+            *reset_date,
         )],
-        CopilotUsage::Unlimited { .. } | CopilotUsage::Unknown { .. } => vec![],
+        CopilotUsage::AiCreditsCapped {
+            entitlement,
+            used,
+            reset_date,
+            ..
+        } => vec![Quota::new(
+            QuotaWindow::Monthly,
+            "AI Credits",
+            *used,
+            *entitlement,
+            QuotaUnit::Requests,
+            *reset_date,
+        )],
+        CopilotUsage::AiCreditsPooled { .. } | CopilotUsage::Unknown { .. } => vec![],
     }
 }
 
@@ -398,10 +367,18 @@ struct UserResponse {
     quota_reset_date_utc: Option<String>,
     #[serde(default)]
     quota_reset_date: Option<String>,
+    /// `true` once the account is on usage-based AI-Credits billing (post
+    /// 2026-06-01). The regime discriminator — observed, not guessed.
+    #[serde(default)]
+    token_based_billing: bool,
 }
 
 /// One `quota_snapshots` entry. Every field is optional/defaulted — the endpoint
 /// is undocumented and its shape shifts between regimes, so we parse defensively.
+/// We declare only the fields we actually read; serde silently ignores the rest
+/// the payload carries (`quota_id`, `quota_reset_at`, per-snapshot
+/// `token_based_billing`, `timestamp_utc`, …) — declaring unread fields would
+/// only trip `-D warnings`.
 #[derive(Deserialize)]
 struct QuotaSnapshot {
     #[serde(default)]
@@ -415,16 +392,20 @@ struct QuotaSnapshot {
     #[serde(default)]
     percent_remaining: Option<f64>,
     #[serde(default)]
-    overage_count: f64,
-    #[serde(default)]
     overage_permitted: bool,
     #[serde(default)]
     unlimited: bool,
+    /// Marks the metered quota under token-based billing (observed `true` on
+    /// `premium_interactions`, `false` on chat/completions).
+    #[serde(default)]
+    has_quota: bool,
 }
 
 impl QuotaSnapshot {
-    /// A quota worth showing as a budget: a finite, non-zero allowance.
-    fn is_bounded(&self) -> bool {
+    /// A real per-seat cap worth showing as a budget: finite, non-zero, not
+    /// flagged unlimited. The pooled Business case (`unlimited, entitlement 0`)
+    /// is NOT capped — even though it reports `percent_remaining: 100`.
+    fn is_capped(&self) -> bool {
         !self.unlimited && self.entitlement > 0.0
     }
 
@@ -463,124 +444,115 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_premium_interactions_is_the_headline() {
+    async fn legacy_pro_plus_is_premium_requests() {
+        // Pre-migration grandfathered annual: no token_based_billing,
+        // premium_interactions is a real cap. (The zed #44499 contrast payload.)
         let (_s, status) = serve(json!({
-            "copilot_plan": "pro",
+            "copilot_plan": "individual_pro",
             "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
             "quota_snapshots": {
-                "premium_interactions": snap(300.0, 120.0, false),
-                "chat": snap(200.0, 50.0, false),
+                "premium_interactions": { "entitlement": 1500, "remaining": 1327, "quota_remaining": 1327.0, "percent_remaining": 88.5, "unlimited": false },
+                "chat": snap(0.0, 0.0, true),
+                "completions": snap(0.0, 0.0, true)
             }
         }))
         .await;
 
-        assert_eq!(status.plan, "Pro");
         assert_eq!(status.quotas.len(), 1);
         let q = &status.quotas[0];
-        // premium_interactions is the LEGACY request counter, not AI Credits.
         assert_eq!(q.label, "Premium requests");
-        assert_eq!(q.total, 300.0);
-        assert_eq!(q.used, 180.0, "used = entitlement - remaining");
+        assert_eq!(q.total, 1500.0);
+        assert_eq!(q.used, 173.0, "used = entitlement - remaining");
         assert!(matches!(
             status.copilot_usage,
             Some(CopilotUsage::PremiumRequests { .. })
         ));
     }
 
-    #[test]
-    fn credits_regime_classifies_as_ai_credits_when_the_id_is_known() {
-        // Proves the AI-Credits path works once we add the *real* id — without
-        // shipping a guessed id in HEADLINE_QUOTAS. The id here is a test
-        // fixture, NOT a claim about GitHub's actual field name.
-        let table: &[(&str, Regime, &str)] =
-            &[("unconfirmed-credits-id", Regime::Credits, "AI Credits")];
-        let mut snaps = HashMap::new();
-        snaps.insert(
-            "unconfirmed-credits-id".to_string(),
-            QuotaSnapshot {
-                entitlement: 7000.0,
-                quota_remaining: Some(6500.0),
-                remaining: None,
-                percent_remaining: None,
-                overage_count: 0.0,
-                overage_permitted: false,
-                unlimited: false,
-            },
-        );
-        match classify(&snaps, table) {
-            CopilotUsage::AiCredits {
-                included_credits,
-                used,
-                ..
-            } => {
-                assert_eq!(included_credits, 7000.0);
-                assert_eq!(used, 500.0);
+    #[tokio::test]
+    async fn migrated_business_seat_is_pooled_not_blank() {
+        // Real migrated Business payload (login AdrienDOS78): token_based_billing,
+        // premium_interactions unlimited + entitlement 0 + has_quota:true. Credits
+        // live at the org level — no per-seat balance here. TRAP: percent_remaining
+        // is 100 with remaining 0 / entitlement 0 — we must render NEITHER a bar
+        // NOR a count, and never blank.
+        let (_s, status) = serve(json!({
+            "copilot_plan": "business",
+            "token_based_billing": true,
+            "quota_reset_date": "2026-07-01",
+            "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
+            "quota_snapshots": {
+                "chat": { "unlimited": true, "has_quota": false, "entitlement": 0, "remaining": 0, "percent_remaining": 100.0, "token_based_billing": true },
+                "completions": { "unlimited": true, "has_quota": false, "entitlement": 0, "remaining": 0, "percent_remaining": 100.0, "token_based_billing": true },
+                "premium_interactions": { "unlimited": true, "has_quota": true, "entitlement": 0, "remaining": 0, "percent_remaining": 100.0, "overage_permitted": true, "token_based_billing": true }
             }
-            other => panic!("expected AiCredits, got {other:?}"),
-        }
+        }))
+        .await;
+
+        assert_eq!(status.plan, "Business");
+        assert!(status.quotas.is_empty(), "pooled: no bar, no count");
+        assert!(
+            matches!(
+                status.copilot_usage,
+                Some(CopilotUsage::AiCreditsPooled { .. })
+            ),
+            "expected pooled Business seat, got {:?}",
+            status.copilot_usage
+        );
     }
 
     #[tokio::test]
-    async fn unconfirmed_credits_shape_is_unknown_not_guessed() {
-        // We have NOT confirmed the migrated credits id, so a credits-shaped
-        // payload must surface as Unknown (with raw ids) — never guessed into a
-        // headline number under an "AI Credits" label.
+    async fn migrated_individual_pro_plus_is_ai_credits_capped() {
+        // SYNTHETIC (no real sample yet): an individual migrated seat is NOT pooled
+        // — it carries personal included credits, so token_based_billing is true
+        // WITH a real entitlement. Must classify as capped + render a numeric row.
         let (_s, status) = serve(json!({
-            "copilot_plan": "pro_plus",
-            "quota_snapshots": { "ai_credits": snap(7000.0, 6500.0, false) }
+            "copilot_plan": "individual_pro_plus",
+            "token_based_billing": true,
+            "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
+            "quota_snapshots": {
+                "premium_interactions": { "entitlement": 3900, "remaining": 3510, "quota_remaining": 3510.0, "percent_remaining": 90.0, "unlimited": false, "has_quota": true, "token_based_billing": true },
+                "chat": snap(0.0, 0.0, true),
+                "completions": snap(0.0, 0.0, true)
+            }
         }))
         .await;
+
+        assert_eq!(status.quotas.len(), 1);
+        let q = &status.quotas[0];
+        assert_eq!(q.label, "AI Credits");
+        assert_eq!(q.total, 3900.0);
+        assert_eq!(q.used, 390.0);
+        assert!(matches!(
+            status.copilot_usage,
+            Some(CopilotUsage::AiCreditsCapped { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn chat_and_completions_never_become_the_headline() {
+        // Legacy with no premium cap, only chat/completions bounded — we must NOT
+        // promote them to a headline; classify as Unknown (surfaces ids).
+        let (_s, status) = serve(json!({
+            "copilot_plan": "free",
+            "quota_snapshots": {
+                "chat": snap(50.0, 40.0, false),
+                "completions": snap(2000.0, 1800.0, false)
+            }
+        }))
+        .await;
+        assert!(status.quotas.is_empty());
         match status.copilot_usage {
             Some(CopilotUsage::Unknown { raw_snapshot_ids }) => {
-                assert_eq!(raw_snapshot_ids, vec!["ai_credits"]);
+                assert_eq!(raw_snapshot_ids, vec!["chat", "completions"]);
             }
             other => panic!("expected Unknown, got {other:?}"),
         }
-        assert!(status.quotas.is_empty());
-    }
-
-    #[tokio::test]
-    async fn falls_back_past_zero_entitlement_premium_to_chat() {
-        // Free/individual: premium_interactions entitlement 0 → fall through to chat.
-        let (_s, status) = serve(json!({
-            "copilot_plan": "individual",
-            "quota_snapshots": {
-                "premium_interactions": snap(0.0, 0.0, false),
-                "chat": snap(200.0, 184.0, false),
-                "completions": snap(2000.0, 2000.0, false),
-            }
-        }))
-        .await;
-        let q = &status.quotas[0];
-        assert_eq!(q.label, "Chat");
-        assert_eq!(q.total, 200.0);
-        assert_eq!(q.used, 16.0);
-    }
-
-    #[tokio::test]
-    async fn all_unlimited_renders_unlimited_not_blank() {
-        let (_s, status) = serve(json!({
-            "copilot_plan": "enterprise",
-            "quota_snapshots": {
-                "premium_interactions": snap(0.0, 0.0, true),
-                "chat": snap(0.0, 0.0, true),
-            }
-        }))
-        .await;
-
-        assert_eq!(status.plan, "Enterprise");
-        assert!(matches!(status.state, ServiceState::Active));
-        assert!(status.quotas.is_empty(), "no numeric row for unlimited");
-        assert!(
-            matches!(status.copilot_usage, Some(CopilotUsage::Unlimited { .. })),
-            "unlimited plan must classify as Unlimited, not blank"
-        );
     }
 
     #[tokio::test]
     async fn unrecognized_shape_is_unknown_with_raw_ids() {
-        // The migration could rename the credits object to something we don't
-        // probe yet — must surface ids, never blank.
+        // A shape we don't recognize at all → surface ids, never blank.
         let (_s, status) = serve(json!({
             "copilot_plan": "pro_plus",
             "quota_snapshots": {
