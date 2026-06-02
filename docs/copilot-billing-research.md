@@ -171,11 +171,25 @@ A real Business seat (`copilot_plan: "business"`, `access_type_sku: "copilot_for
 - On this seat `premium_interactions` is **`unlimited: true, entitlement: 0, remaining: 0, overage_permitted: true`** — i.e. **`copilot_internal/user` carries NO per-seat credit balance** for an org seat with no user budget. New fields seen: `has_quota`, `token_based_billing`, `quota_reset_at`, `timestamp_utc`.
 - Both `quota_reset_date` ("2026-07-01") **and** `quota_reset_date_utc` present.
 
-**Implication:** for Business/Enterprise seats, the live credit balance is **not** in this endpoint — Headroom shows an honest "AI Credits · usage-based — no per-seat cap" state, and the actual consumption must come from the billing usage API (§2). Confirmed: never blank, never fabricate a number.
+**Implication:** for a pooled Business/Enterprise seat, the live credit balance is **not** in this endpoint — Headroom shows "org-managed (pooled) — no individual quota" (no bar/count), and actual consumption must come from the billing usage API (§2).
 
-## 5. Open questions — still need a real **Pro+ (individual)** account
+## CONFIRMED — real migrated **Free individual** payload (2026-06-02)
 
-1. **Does an individual Pro/Pro+ migrated `copilot_internal/user` expose a credit balance?** Business doesn't (shared pool). An individual has a fixed monthly allowance, so its `premium_interactions` (or another `has_quota` snapshot) *might* be bounded with real `entitlement`/`quota_remaining` — if so Headroom renders the numeric AI-Credits row automatically (path already coded + tested). **Capture a Pro+ raw payload to confirm.**
+A real Free seat (`access_type_sku: "free_limited_copilot"`, `copilot_plan: "individual"`, empty `organization_list`) returned **`token_based_billing: true`** but with **bounded request quotas**:
+
+- `chat`: `unlimited:false, entitlement:200, remaining:181 (90.7%), has_quota:false`
+- `completions`: `unlimited:false, entitlement:2000, has_quota:false`
+- `premium_interactions`: `unlimited:false, entitlement:0, has_quota:false` (no credits on Free)
+
+**Two corrections this forced:**
+1. **`token_based_billing: true` marks _migration_, not "credits"/"pooled".** It's `true` on Free, whose meaningful quotas are plain request caps.
+2. **chat/completions are NOT always unlimited** — on Free they're real caps and must be surfaced.
+
+So the classifier now: surfaces the first **capped** quota in order `premium_interactions → chat → completions` (Free → "Chat 19/200"); treats `premium_interactions`-under-token-based as AI Credits; reserves **pooled** for a `has_quota && unlimited` holder with nothing bounded (Business); else **unknown**. This handles all three real payloads.
+
+## 5. Open questions — still need a real **paid Pro/Pro+** account
+
+1. **Does a migrated _paid_ Pro/Pro+ expose its credit balance, and how?** The user's individual account is **Free** (above), not paid. Hypothesis from the Free shape: a paid seat's `premium_interactions` is bounded with `entitlement` = included credits (Pro 1000 / Pro+ 3900) → Headroom renders the AI-Credits row automatically (coded + synthetically tested). **Risk:** if a paid seat instead reports `premium_interactions` as `unlimited:true / entitlement:0` (like Business) with credits only at account level, it would fall to pooled and hide the balance. **Capture a paid Pro+ raw payload to settle this.**
 2. **User billing endpoint auth:** does `GET /users/{me}/settings/billing/usage` work with your **own** classic PAT, and which exact scope (`manage_billing:copilot`? a new `Plan` scope?)? Confirm fine-grained really fails and you can only query your own username.
 3. **Freshness:** how stale is the user usage endpoint — minutes, or up to a day? (Decides whether it can drive the live gauge or only a daily "consumed" figure.)
 4. **Allocations:** confirm Pro = 1,000 (+500 flex?) and Pro+ = 3,900 (+3,100 flex?) — is "flex" permanent or the Jun–Aug promo? Do individuals get any promo at all?

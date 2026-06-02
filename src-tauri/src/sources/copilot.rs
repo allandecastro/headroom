@@ -27,11 +27,24 @@ use crate::credentials::Credentials;
 
 const DEFAULT_BASE_URL: &str = "https://api.github.com";
 
-/// The quota that holds the metered budget across regimes. `chat`/`completions`
-/// are deliberately ignored as headline candidates — they're always `unlimited`.
-/// When `premium_interactions` is absent we fall back to any `has_quota` snapshot
-/// (never chat/completions). No quota_id is ever guessed.
-const HEADLINE_QUOTA_ID: &str = "premium_interactions";
+const PREMIUM_INTERACTIONS: &str = "premium_interactions";
+
+/// Headline quota candidates, **priority order**. The first that is *capped*
+/// (`unlimited:false && entitlement>0`) wins, with real numbers. Unlike the
+/// earlier Business-only model, chat/completions ARE valid headlines: a real
+/// migrated **Free** payload reports them as genuine request caps (chat 200 /
+/// completions 2000) while `premium_interactions` is empty. No quota_id is guessed.
+const HEADLINE_PRIORITY: [&str; 3] = [PREMIUM_INTERACTIONS, "chat", "completions"];
+
+/// Display label for a known headline quota id.
+fn label_for(id: &str) -> &'static str {
+    match id {
+        "premium_interactions" => "Premium requests",
+        "chat" => "Chat",
+        "completions" => "Completions",
+        _ => "Requests",
+    }
+}
 
 /// Normalized Copilot usage, tagged on billing regime so the UI can render every
 /// case and we degrade gracefully when GitHub changes the shape again. Regime is
@@ -39,9 +52,11 @@ const HEADLINE_QUOTA_ID: &str = "premium_interactions";
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum CopilotUsage {
-    /// Legacy request-based billing (`token_based_billing` absent/false) with a
-    /// real cap — grandfathered annual Pro/Pro+ plans.
+    /// A bounded **request-counted** quota: legacy grandfathered premium requests,
+    /// or a migrated plan's request caps (e.g. Free `chat` 200 / `completions`
+    /// 2000). `label` names which (`Premium requests` / `Chat` / `Completions`).
     PremiumRequests {
+        label: String,
         entitlement: f64,
         remaining: f64,
         used: f64,
@@ -49,9 +64,9 @@ pub enum CopilotUsage {
         overage_permitted: bool,
         reset_date: DateTime<Utc>,
     },
-    /// AI-Credits regime (`token_based_billing: true`) with a per-seat cap — a
-    /// user-level budget is set, or an individual plan carries personal credits
-    /// (Pro 1000 / Pro+ 3900). 1 credit = $0.01.
+    /// AI-Credits balance: `premium_interactions` under `token_based_billing` with
+    /// a real per-seat cap — an individual plan's personal credits (Pro 1000 /
+    /// Pro+ 3900) or a user-level budget. 1 credit = $0.01.
     AiCreditsCapped {
         entitlement: f64,
         remaining: f64,
@@ -202,50 +217,48 @@ fn normalize_usage(
     snapshots: &HashMap<String, QuotaSnapshot>,
     reset_date: DateTime<Utc>,
 ) -> CopilotUsage {
-    let headline = headline_quota(snapshots);
-    if token_based_billing {
-        // AI-Credits regime: capped if the headline carries a real per-seat cap,
-        // otherwise pooled (org credits, not exposed per-user — the Business case).
-        match headline {
-            Some(snap) if snap.is_capped() => CopilotUsage::AiCreditsCapped {
+    // 1) First *capped* known quota wins, with real numbers. `premium_interactions`
+    //    under token-based billing is the AI-Credits balance; everything else
+    //    (chat/completions, or legacy premium requests) is a plain request count.
+    for id in HEADLINE_PRIORITY {
+        let Some(snap) = snapshots.get(id) else {
+            continue;
+        };
+        if !snap.is_capped() {
+            continue;
+        }
+        let remaining = snap.effective_remaining();
+        let used = (snap.entitlement - remaining).max(0.0);
+        if id == PREMIUM_INTERACTIONS && token_based_billing {
+            return CopilotUsage::AiCreditsCapped {
                 entitlement: snap.entitlement,
-                remaining: snap.effective_remaining(),
-                used: (snap.entitlement - snap.effective_remaining()).max(0.0),
+                remaining,
+                used,
                 percent_remaining: snap.percent_remaining,
                 overage_permitted: snap.overage_permitted,
                 reset_date,
-            },
-            _ => CopilotUsage::AiCreditsPooled { reset_date },
+            };
         }
-    } else {
-        // Legacy request-based regime: a real cap → PremiumRequests; else Unknown
-        // (we never promote the always-unlimited chat/completions to a headline).
-        match headline {
-            Some(snap) if snap.is_capped() => CopilotUsage::PremiumRequests {
-                entitlement: snap.entitlement,
-                remaining: snap.effective_remaining(),
-                used: (snap.entitlement - snap.effective_remaining()).max(0.0),
-                percent_remaining: snap.percent_remaining,
-                overage_permitted: snap.overage_permitted,
-                reset_date,
-            },
-            _ => unknown(snapshots),
-        }
+        return CopilotUsage::PremiumRequests {
+            label: label_for(id).to_string(),
+            entitlement: snap.entitlement,
+            remaining,
+            used,
+            percent_remaining: snap.percent_remaining,
+            overage_permitted: snap.overage_permitted,
+            reset_date,
+        };
     }
-}
 
-/// The headline quota holder: `premium_interactions` by priority, else any
-/// `has_quota` snapshot — but **never** `chat`/`completions` (always unlimited).
-/// Selected by observed fields, no quota_id guessing.
-fn headline_quota(snapshots: &HashMap<String, QuotaSnapshot>) -> Option<&QuotaSnapshot> {
-    if let Some(snap) = snapshots.get(HEADLINE_QUOTA_ID) {
-        return Some(snap);
+    // 2) Pooled: a token-based org seat whose metered quota is `has_quota` but
+    //    `unlimited` — the credits live at the org level and aren't exposed
+    //    per-user (the observed Business case). Never show a bar/count here.
+    if token_based_billing && snapshots.values().any(|s| s.has_quota && s.unlimited) {
+        return CopilotUsage::AiCreditsPooled { reset_date };
     }
-    snapshots
-        .iter()
-        .filter(|(id, _)| id.as_str() != "chat" && id.as_str() != "completions")
-        .map(|(_, snap)| snap)
-        .find(|snap| snap.has_quota)
+
+    // 3) Nothing usable — surface the raw ids rather than blank.
+    unknown(snapshots)
 }
 
 fn unknown(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
@@ -263,13 +276,14 @@ fn unknown(snapshots: &HashMap<String, QuotaSnapshot>) -> CopilotUsage {
 fn usage_to_quotas(usage: &CopilotUsage) -> Vec<Quota> {
     match usage {
         CopilotUsage::PremiumRequests {
+            label,
             entitlement,
             used,
             reset_date,
             ..
         } => vec![Quota::new(
             QuotaWindow::Monthly,
-            "Premium requests",
+            label.clone(),
             *used,
             *entitlement,
             QuotaUnit::Requests,
@@ -530,23 +544,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn chat_and_completions_never_become_the_headline() {
-        // Legacy with no premium cap, only chat/completions bounded — we must NOT
-        // promote them to a headline; classify as Unknown (surfaces ids).
+    async fn free_individual_shows_bounded_chat_not_pooled() {
+        // Real migrated Free payload (allandecastro): token_based_billing is true,
+        // but chat/completions are REAL request caps and premium_interactions is
+        // empty. Must surface the bounded chat quota — NOT misclassify as pooled.
         let (_s, status) = serve(json!({
-            "copilot_plan": "free",
+            "copilot_plan": "individual",
+            "access_type_sku": "free_limited_copilot",
+            "token_based_billing": true,
+            "quota_reset_date_utc": "2026-07-01T00:00:00.000Z",
             "quota_snapshots": {
-                "chat": snap(50.0, 40.0, false),
-                "completions": snap(2000.0, 1800.0, false)
+                "chat": { "unlimited": false, "has_quota": false, "entitlement": 200, "remaining": 181, "quota_remaining": 181.4, "percent_remaining": 90.7, "token_based_billing": true },
+                "completions": { "unlimited": false, "has_quota": false, "entitlement": 2000, "remaining": 2000, "quota_remaining": 2000.0, "percent_remaining": 100.0, "token_based_billing": true },
+                "premium_interactions": { "unlimited": false, "has_quota": false, "entitlement": 0, "remaining": 0, "quota_remaining": 0.0, "percent_remaining": 0.0, "token_based_billing": true }
             }
         }))
         .await;
-        assert!(status.quotas.is_empty());
+
+        assert_eq!(status.quotas.len(), 1);
+        let q = &status.quotas[0];
+        assert_eq!(q.label, "Chat");
+        assert_eq!(q.total, 200.0);
+        assert!((q.used - 18.6).abs() < 0.01, "used was {}", q.used);
         match status.copilot_usage {
-            Some(CopilotUsage::Unknown { raw_snapshot_ids }) => {
-                assert_eq!(raw_snapshot_ids, vec!["chat", "completions"]);
-            }
-            other => panic!("expected Unknown, got {other:?}"),
+            Some(CopilotUsage::PremiumRequests { label, .. }) => assert_eq!(label, "Chat"),
+            other => panic!("expected PremiumRequests(Chat), not pooled — got {other:?}"),
         }
     }
 

@@ -11,20 +11,23 @@ All notable changes to Headroom are recorded here. The format follows
 - **Copilot card no longer renders blank after the AI-Credits migration.** GitHub
   moved all Copilot plans from premium requests to usage-based AI Credits on
   2026-06-01, which reshaped the (undocumented) `copilot_internal/user` payload.
-  Parsing is now **regime-aware**, driven by fields confirmed in real payloads —
-  never guessed. The **`token_based_billing`** flag selects the regime and the
-  usage normalizes into one of four cases: **premium requests** (legacy
-  grandfathered cap), **AI Credits — capped** (usage-based with a per-seat
-  cap, e.g. an individual plan's included credits), **AI Credits — pooled**
-  (org/Business seat drawing from a shared org pool: credits aren't exposed
-  per-user, so it renders _"org-managed (pooled) — no individual quota"_ with
-  **no bar and no count** — the `percent_remaining: 100` / `remaining: 0` that
-  this payload reports would otherwise be a misleading full-or-empty bar), and
-  **unknown** (unrecognized shape → _"couldn't read usage"_ + **Copy
-  diagnostics**). The headline quota is `premium_interactions` (or any `has_quota`
-  snapshot), never the always-unlimited chat/completions. No plan assumptions, no
-  hardcoded caps. Reset-date parsing uses a defensive fallback chain
-  (`quota_reset_date_utc` → `quota_reset_date` → start of next month).
+  Parsing is now **regime-aware**, driven by fields confirmed in three real
+  payloads (Business, Free, legacy Pro+) — never guessed. It surfaces the first
+  **capped** quota (`unlimited:false && entitlement>0`) in priority order
+  `premium_interactions → chat → completions`, normalizing into: **AI Credits —
+  capped** (`premium_interactions` under `token_based_billing` — an individual
+  plan's personal credits or a user budget), **premium requests** (a bounded
+  request count — legacy grandfathered, or a migrated Free plan's real chat /
+  completions caps), **AI Credits — pooled** (a token-based org/Business seat
+  whose metered quota is `has_quota` but `unlimited`: credits live at the org
+  level, not exposed per-user → _"org-managed (pooled) — no individual quota"_
+  with **no bar and no count**, since its `percent_remaining: 100` / `remaining:
+  0` would otherwise mislead), or **unknown** (nothing usable → _"couldn't read
+  usage"_ + **Copy diagnostics**). `token_based_billing` marks *migration*, not
+  "credits" — it's `true` even on Free, whose chat/completions remain real
+  request caps. No plan assumptions, no hardcoded caps. Reset-date parsing uses a
+  defensive fallback chain (`quota_reset_date_utc` → `quota_reset_date` → start of
+  next month).
 
 ### Added
 

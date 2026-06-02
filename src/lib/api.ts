@@ -44,7 +44,8 @@ export interface Quota {
 // must render every case — including `unknown` — and degrade gracefully.
 export type CopilotUsage =
   | {
-      mode: 'premium_requests'; // legacy request-based billing (grandfathered annual)
+      mode: 'premium_requests'; // a bounded request count: legacy premium requests, or Free chat/completions
+      label: string; // "Premium requests" | "Chat" | "Completions"
       entitlement: number;
       remaining: number;
       used: number;
