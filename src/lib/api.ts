@@ -22,6 +22,7 @@ export interface Pace {
   daily_rate: number; // %/day burned over the recent ~24h lookback
   safe_pace: number; // max %/day that lands at 100% exactly at reset
   over_pace: boolean;
+  low_confidence: boolean; // lookback straddled an app-closed gap — show as tentative
 }
 
 export interface Quota {
