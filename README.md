@@ -77,7 +77,7 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Status
 
-**v1.0.0** — first public release. The data acquisition strategies for both Claude and Copilot run live against the official endpoints; credentials are persisted in the OS keychain; the burndown + sparkline + recent-burn-rate pace ship in the popover; notifications, autostart, single-instance lock, configurable thresholds, and the click-to-expand chart are all in. See [CHANGELOG.md](CHANGELOG.md) for the full release notes and [FAQ.md § Scope](FAQ.md#scope) for what is and isn't on the table next.
+**Stable.** Both Claude and Copilot run live against the official endpoints, with credentials in the OS keychain; the burndown + sparkline + recent-burn-rate pace, threshold notifications, autostart, single-instance lock, and the click-to-expand chart all ship in the popover. Recent releases added **"Sign in with GitHub"** for Copilot, **update notifications** (in-app heads-up when a newer build is out), regime-aware **GitHub AI-Credits** handling for Copilot (after GitHub's 2026 billing migration), and per-service **diagnostics**. The latest version is on the [Releases](https://github.com/allandecastro/headroom/releases) page; see [CHANGELOG.md](CHANGELOG.md) for full notes and [FAQ.md § Scope](FAQ.md#scope) for what's next.
 
 ---
 
