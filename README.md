@@ -63,9 +63,9 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Features
 
-- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly AI Credits / premium requests, with the plan and cap read live from your account).
+- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly AI Credits / premium requests, with the plan and cap read live from your account). The percentages are the **server-enforced** numbers — read straight off the same endpoints `claude.ai/settings/usage` and your GitHub account use — never reconstructed by parsing local logs, so they can't drift from the quota that's actually enforced.
 - **Tray icon** colour-coded green / amber / red from the worst quota across services; hover shows the percentage; the tray menu offers Open / Set up accounts / Settings / Quit.
-- **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap.
+- **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap. The recent-burn-rate pace is the one figure derived from your locally-sampled history rather than the server; if that history has a gap (the app was closed for a stretch) the pace is shown muted as _"rough (history gap)"_ rather than raising a false alarm.
 - **Magic sign-in for both** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; **Copilot** has _"Sign in with GitHub"_ (OAuth device flow — enter a short code, no token to create). Each has a paste fallback under _Advanced_ (a Claude session key, or any GitHub token). The plan and quota cap are read from your account (see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.

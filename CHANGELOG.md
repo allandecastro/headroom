@@ -8,6 +8,23 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.2.1] — 2026-06-02
+
+### Fixed
+
+- **Recent-burn-rate pace no longer misleads after the app has been closed.**
+  The pace is computed from locally-sampled history, which has holes whenever
+  Headroom wasn't running (sleep, quit). The live quota percentages are always
+  the server-enforced numbers, but a pace whose lookback straddled an
+  app-closed gap was being averaged across time it never observed — and could
+  trip the red "over pace" warning off it. The slope now stays an honest
+  wall-clock rate (the right basis for a calendar-reset quota) and, when its
+  lookback spans a gap, renders muted as _"Burning ~N%/day · rough (history
+  gap)"_ with the over-pace alarm suppressed until the history is continuous
+  again. ([#30])
+
+[#30]: https://github.com/allandecastro/headroom/pull/30
+
 ## [1.2.0] — 2026-06-01
 
 ### Added
