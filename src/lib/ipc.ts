@@ -105,3 +105,11 @@ export function checkForUpdateNow(): Promise<UpdateInfo | null> {
 export function copilotDiagnostics(): Promise<string> {
   return invoke('copilot_diagnostics');
 }
+
+/**
+ * Fetch the raw Claude `/usage` payload (sessionKey redacted) for diagnostics —
+ * the Claude counterpart to {@link copilotDiagnostics}.
+ */
+export function claudeDiagnostics(): Promise<string> {
+  return invoke('claude_diagnostics');
+}

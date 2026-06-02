@@ -119,7 +119,8 @@ pub fn run() {
             commands::start_copilot_signin,
             commands::get_update,
             commands::check_for_update_now,
-            commands::copilot_diagnostics
+            commands::copilot_diagnostics,
+            commands::claude_diagnostics
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
