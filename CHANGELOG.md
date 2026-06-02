@@ -8,6 +8,29 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.3.3] — 2026-06-02
+
+### Fixed
+
+- **Settings window no longer overlaps the taskbar.** The auto-fit logic sized
+  the window to the full content height with no clamp, so as the page grew it
+  slipped behind the taskbar. Windows are now clamped to the monitor work area,
+  and the Settings/Onboarding panels scroll when content exceeds it. ([#40])
+
+### Changed
+
+- **Theme-aware scrollbar** — the scrollbar (exposed by the fix above) is now a
+  thin, subtle pill that matches light/dark instead of the blank OS gutter. ([#40])
+
+### Added
+
+- **Claude diagnostics** — Settings → About now has a single _Diagnostics_ row
+  with **Claude** and **Copilot** copy buttons, each dumping that service's raw
+  usage payload (credential redacted) to the clipboard for bug reports. Claude
+  gains the same escape hatch Copilot had. ([#40])
+
+[#40]: https://github.com/allandecastro/headroom/pull/40
+
 ## [1.3.2] — 2026-06-02
 
 ### Fixed
