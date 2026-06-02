@@ -61,6 +61,10 @@ Headroom records one history sample per quota every ~5 minutes. A fresh install 
 
 GitHub doesn't expose them. The Copilot endpoint reports **monthly** quota totals; the per-session and weekly rate-limit windows GitHub enforces aren't documented numerically and have no API to query. What Headroom _can_ (and does) show is the **recent burn rate** — _"Burning N%/day · M%/day keeps you on track"_ — derived locally from your own history samples. It can't tell you you're throttled right now, but it can tell you you're about to be.
 
+### Why does my burn rate say "rough (history gap)"?
+
+Because Headroom couldn't watch the whole window. The live quota percentages are always the exact server-enforced numbers, but the **burn rate** is the one figure inferred from your locally-sampled history — and that history has holes whenever the app wasn't running (sleep, quit). When the recent-24h lookback spans such a gap, the rate is being averaged across time Headroom never observed, so it's shown muted and the "over pace" warning is held back rather than firing on a guess. It tightens up on its own once the app has been running continuously for an hour or so. (The current % is unaffected — it snaps back to the server's number the instant Headroom polls again.)
+
 ### My tray icon turned grey but I'm not "unreachable".
 
 The grey icon means _all_ services are in an error state (unreachable / auth_required) with nothing active to colour from. If at least one service is healthy, its quota colour drives the tray instead. A grey tray usually means: token expired (re-auth), network blip (will retry), or your laptop just woke from sleep.

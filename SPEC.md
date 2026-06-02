@@ -217,7 +217,7 @@ Background Tokio task. Default tick: 30s, re-read from settings each cycle. On e
 4. Update tray state (worst-quota percentage drives the tooltip / title).
 5. Run `notify_thresholds()`.
 
-Usage history is recorded here too: each active quota's utilization is sampled into the `history` module (throttled to ~5-minute spacing), persisted to disk, and downsampled into the popover sparkline.
+Usage history is recorded here too: each active quota's utilization is sampled into the `history` module (throttled to ~5-minute spacing), persisted to disk, and downsampled into the popover sparkline. From that series the `projection` module derives the **recent-burn-rate pace** for the long (weekly/monthly) windows: `recent_delta` returns Δutilization over the last 24h measured against **wall-clock** (idle time included — the honest basis for a calendar-reset quota, since the reset fires regardless of activity). If the in-window samples straddle a stretch longer than an hour — the app was closed — the rate is being averaged across time we never observed, so the result carries a `low_confidence` flag; the UI shows it muted as _"rough (history gap)"_ and holds back the over-pace warning rather than re-anchoring the lookback (anchoring to the post-reopen burst would over-state the daily rate whenever the gap was just idle sleep).
 
 ### `tray`
 
@@ -301,3 +301,4 @@ See [DESIGN_SYSTEM.md § Tray icons](DESIGN_SYSTEM.md#tray-icons). Four PNG asse
 - **User changes plan mid-month**: nothing to do — the plan, entitlement, and reset date come from `copilot_internal/user` on every poll, so a tier change is picked up automatically.
 - **Anthropic ships an official usage API**: the `claude.rs` source has a clean interface; adding a second strategy (Bearer vs Cookie) is a 30-line change.
 - **Multiple monitors with different DPI**: tray icon must render correctly at 16, 22, 32 px logical. SVG source rasterized at build time into all sizes.
+- **App closed for a stretch, then reopened**: the live percentages snap straight back to the server-enforced numbers on the next poll, so nothing is lost there. Only the recent-burn-rate pace is affected — its lookback now spans a gap — so it's flagged `low_confidence` and shown as _"rough (history gap)"_ until the sampled history is continuous again (see `orchestrator` / `projection`).
