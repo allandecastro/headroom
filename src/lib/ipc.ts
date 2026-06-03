@@ -98,6 +98,26 @@ export function checkForUpdateNow(): Promise<UpdateInfo | null> {
   return invoke('check_for_update_now');
 }
 
+/** Download progress for an in-app update, emitted as the `update-progress` event. */
+export interface UpdateProgress {
+  downloaded: number;
+  content_length: number | null;
+}
+
+/** What the renderer should do after {@link installUpdate}. */
+export type InstallOutcome = { kind: 'open_url'; url: string };
+
+/**
+ * Download and install the latest release, then relaunch. On a successful
+ * in-app install the app restarts and this promise never resolves. On platforms
+ * that can't self-install (macOS, `.deb`) — or any updater failure — it resolves
+ * with `{ kind: 'open_url' }` so the caller opens the release page instead.
+ * Subscribe to the `update-progress` event for a progress bar while it runs.
+ */
+export function installUpdate(): Promise<InstallOutcome> {
+  return invoke('install_update');
+}
+
 /**
  * Fetch the raw `copilot_internal/user` payload (token redacted) for diagnostics
  * — used to capture the real (undocumented, post-migration) shape for reporting.

@@ -3,8 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
 import { TokenCard } from './components/TokenCard';
-import { openSettings, getSettings, getUpdate } from './lib/ipc';
-import type { Settings } from './lib/ipc';
+import { openSettings, getSettings, getUpdate, installUpdate } from './lib/ipc';
+import type { Settings, UpdateProgress } from './lib/ipc';
 import { useFitWindowHeight } from './lib/useFitWindow';
 import type { Snapshot, UpdateInfo } from './lib/api';
 
@@ -17,6 +17,9 @@ export default function App() {
   const [critPct, setCritPct] = useState(95);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [installPct, setInstallPct] = useState<number | null>(null);
+  const [installError, setInstallError] = useState(false);
   const [, forceTick] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 360, true);
@@ -48,6 +51,13 @@ export default function App() {
       setWarnPct(event.payload.notify_warn_pct);
       setCritPct(event.payload.notify_crit_pct);
     });
+    // Download progress while an in-app update installs.
+    const unlistenProgress = listen<UpdateProgress>('update-progress', (event) => {
+      const { downloaded, content_length } = event.payload;
+      setInstallPct(
+        content_length ? Math.min(100, Math.round((downloaded / content_length) * 100)) : null,
+      );
+    });
 
     // Tick once per second so countdowns update in the UI
     const tick = setInterval(() => forceTick((n) => n + 1), 1000);
@@ -56,9 +66,31 @@ export default function App() {
       unlistenTokens.then((fn) => fn());
       unlistenSettings.then((fn) => fn());
       unlistenUpdate.then((fn) => fn());
+      unlistenProgress.then((fn) => fn());
       clearInterval(tick);
     };
   }, []);
+
+  // "Update now": download + install + relaunch. On success the app restarts and
+  // this never returns; on an unsupported platform / failure we open the release
+  // page so the manual download still works.
+  async function handleUpdateNow() {
+    if (!update) return;
+    setInstalling(true);
+    setInstallError(false);
+    setInstallPct(null);
+    try {
+      const outcome = await installUpdate();
+      if (outcome?.kind === 'open_url') {
+        open(outcome.url).catch(console.error);
+        setInstalling(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setInstalling(false);
+      setInstallError(true);
+    }
+  }
 
   const polledAgoSec = snapshot ? Math.floor((Date.now() - snapshot.polled_at * 1000) / 1000) : 0;
 
@@ -75,22 +107,37 @@ export default function App() {
                   <span aria-hidden className="text-state-ok-text dark:text-state-ok-text-dark">
                     ⬆
                   </span>{' '}
-                  Headroom v{update.version} available
+                  {installError ? 'Update failed' : `Headroom v${update.version} available`}
                 </span>
                 <span className="flex items-center gap-2.5">
-                  <button
-                    onClick={() => open(update.url).catch(console.error)}
-                    className="text-[11px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
-                  >
-                    Download
-                  </button>
-                  <button
-                    aria-label="Dismiss update notice"
-                    onClick={() => setUpdateDismissed(true)}
-                    className="text-[12px] leading-none text-fg-tertiary hover:text-fg-secondary"
-                  >
-                    ✕
-                  </button>
+                  {installing ? (
+                    <span className="text-[11px] text-fg-tertiary">
+                      {installPct !== null ? `Downloading… ${installPct}%` : 'Installing…'}
+                    </span>
+                  ) : installError ? (
+                    <button
+                      onClick={() => open(update.url).catch(console.error)}
+                      className="text-[11px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+                    >
+                      Open page
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleUpdateNow}
+                      className="text-[11px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+                    >
+                      Update now
+                    </button>
+                  )}
+                  {!installing && (
+                    <button
+                      aria-label="Dismiss update notice"
+                      onClick={() => setUpdateDismissed(true)}
+                      className="text-[12px] leading-none text-fg-tertiary hover:text-fg-secondary"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </span>
               </div>
             )}

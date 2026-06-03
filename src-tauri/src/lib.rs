@@ -98,6 +98,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -119,6 +120,7 @@ pub fn run() {
             commands::start_copilot_signin,
             commands::get_update,
             commands::check_for_update_now,
+            commands::install_update,
             commands::copilot_diagnostics,
             commands::claude_diagnostics
         ])

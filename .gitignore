@@ -37,6 +37,9 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+# Tauri updater signing keys — never commit; private key lives in GitHub secrets
+*.key
+*.key.pub
 
 # Test artifacts
 coverage/

@@ -1,16 +1,16 @@
-//! Update check — ask the GitHub Releases API for the newest published release
-//! and compare it to the running version.
+//! Update **detection** — ask the GitHub Releases API for the newest published
+//! release and compare it to the running version.
 //!
-//! This is a **notify-only** checker: it tells the user a newer build exists and
-//! links to the download. It does not download or install anything — in-app
-//! auto-update needs code signing (see SPEC.md, deferred). The current version
-//! is baked in from `Cargo.toml` at compile time.
+//! This module only detects a newer build and surfaces `UpdateInfo { version,
+//! url }`; the actual download-install-relaunch lives in `commands::install_update`
+//! (on `tauri-plugin-updater`). The current version is baked in from `Cargo.toml`
+//! at compile time.
 
 use reqwest::{header, Client};
 use serde::{Deserialize, Serialize};
 
 const RELEASES_API: &str = "https://api.github.com/repos/allandecastro/headroom/releases/latest";
-const RELEASES_PAGE: &str = "https://github.com/allandecastro/headroom/releases/latest";
+pub const RELEASES_PAGE: &str = "https://github.com/allandecastro/headroom/releases/latest";
 
 /// The running version, from `Cargo.toml` at build time (e.g. "1.2.1").
 pub const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
