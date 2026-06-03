@@ -1,0 +1,48 @@
+name: Screenshots
+
+# Verify the README popover screenshots are in sync with the UI on every PR.
+# This regenerates them and fails if the committed PNGs are stale — run
+# `npm run screenshots` locally and commit the result to fix it.
+#
+# Why verify-only (not auto-commit): a CI auto-commit pushed with the default
+# GITHUB_TOKEN does not re-trigger workflows, so it would land on the PR head
+# without the required status checks and block the merge. Verifying instead keeps
+# you in control of (and reviewing) the image diffs, with no token to manage. To
+# switch to true auto-commit later, push with a PAT/App token that re-triggers CI.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: screenshots-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Screenshots up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Regenerate
+        run: npm run screenshots
+
+      - name: Check for drift
+        run: |
+          if [[ -n "$(git status --porcelain docs/screenshots)" ]]; then
+            echo "::error::Screenshots are out of date. Run 'npm run screenshots' and commit docs/screenshots."
+            git --no-pager diff --stat docs/screenshots
+            exit 1
+          fi
+          echo "Screenshots are up to date."
