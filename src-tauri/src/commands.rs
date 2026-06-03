@@ -354,12 +354,15 @@ pub async fn check_for_update_now(
 
 /// What the renderer should do after clicking "Update now". A successful in-app
 /// install never yields this value — the app restarts into the new version
-/// instead. The only variant the renderer sees is the browser fallback (macOS,
-/// `.deb`, or when no signed manifest entry is available for this platform).
+/// instead. On macOS a Homebrew-installed app instead returns `Brew` once the
+/// `brew upgrade` has been kicked off in a detached Terminal.
 #[derive(serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum InstallOutcome {
     OpenUrl { url: String },
+    /// macOS only: `brew upgrade --cask headroom` was launched in Terminal.
+    /// Homebrew quits and replaces the app itself, so there's nothing more to do.
+    Brew,
 }
 
 /// Download progress, emitted as the `update-progress` event during install.
@@ -383,10 +386,62 @@ fn self_install_supported() -> bool {
     }
 }
 
+/// macOS only: if Headroom was installed via Homebrew, kick off
+/// `brew upgrade --cask headroom` in a detached Terminal window and return
+/// `Some(Brew)`. The upgrade has to run *outside* this process — brew quits the
+/// app mid-upgrade (the cask's `uninstall quit`) to swap the bundle, which would
+/// kill an in-process child and abort the upgrade. Returns `None` when brew
+/// isn't present or didn't install this app, so the caller falls back to the
+/// release page (the in-app self-updater stays disabled on macOS pending
+/// notarized signing).
+#[cfg(target_os = "macos")]
+fn macos_brew_upgrade() -> Option<InstallOutcome> {
+    use std::process::{Command, Stdio};
+
+    // GUI apps don't inherit the shell PATH, so probe the known brew locations
+    // (Apple Silicon first, then the Intel/Rosetta prefix).
+    let brew = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]
+        .into_iter()
+        .find(|p| std::path::Path::new(p).exists())?;
+
+    // Only take the Homebrew path if brew actually manages our cask — otherwise a
+    // direct-DMG user would get a confusing "cask not installed" failure.
+    let managed = Command::new(brew)
+        .args(["list", "--cask", "headroom"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success());
+    if !managed {
+        return None;
+    }
+
+    // Hand the upgrade to Terminal.app via osascript so it runs independently of
+    // this process and survives Headroom being quit by brew.
+    let cmd = format!("{brew} upgrade --cask headroom");
+    let do_script = format!(r#"tell application "Terminal" to do script "{cmd}""#);
+    match Command::new("/usr/bin/osascript")
+        .args([
+            "-e",
+            r#"tell application "Terminal" to activate"#,
+            "-e",
+            do_script.as_str(),
+        ])
+        .spawn()
+    {
+        Ok(_) => Some(InstallOutcome::Brew),
+        Err(e) => {
+            warn!(?e, "failed to launch brew upgrade in Terminal");
+            None
+        }
+    }
+}
+
 /// Download and install the latest release, then relaunch — the "Update now"
-/// button. On platforms that can't self-install (and on any updater failure) it
-/// returns `OpenUrl` so the renderer opens the release page instead, preserving
-/// the old manual flow. Progress is streamed via the `update-progress` event.
+/// button. On macOS a Homebrew install hands off to `brew upgrade` in Terminal;
+/// on platforms that can't self-install (and on any updater failure) it returns
+/// `OpenUrl` so the renderer opens the release page instead, preserving the old
+/// manual flow. Progress is streamed via the `update-progress` event.
 #[tauri::command]
 pub async fn install_update(
     app: AppHandle,
@@ -399,6 +454,13 @@ pub async fn install_update(
         .as_ref()
         .map(|u| u.url.clone())
         .unwrap_or_else(|| crate::updates::RELEASES_PAGE.to_string());
+
+    // macOS: prefer a Homebrew upgrade when the app is brew-managed; otherwise
+    // fall through to the release-page fallback below.
+    #[cfg(target_os = "macos")]
+    if let Some(outcome) = macos_brew_upgrade() {
+        return Ok(outcome);
+    }
 
     if !self_install_supported() {
         return Ok(InstallOutcome::OpenUrl { url: fallback_url });

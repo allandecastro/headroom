@@ -78,7 +78,7 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 - **Multiple GitHub Copilot accounts** — connect more than one GitHub account (a personal seat and a work seat, or seats in different orgs) and Headroom shows one card per account, each with its own quota and history. Add, remove, and rename accounts under Settings → _GitHub Copilot accounts_ (the per-user API has no org name, so each is labelled by its login and renameable to the org).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
-- **One-click updates** — checks GitHub for newer releases (on launch + every ~6h) and surfaces a one-time desktop alert plus an **Update now** banner in the popover; clicking it downloads, installs, and relaunches the new version (Windows MSI + Linux AppImage; macOS and `.deb` open the release page). Check on demand or toggle it off in Settings.
+- **One-click updates** — checks GitHub for newer releases (on launch + every ~6h) and surfaces a one-time desktop alert plus an **Update now** banner in the popover; clicking it downloads, installs, and relaunches the new version (Windows MSI + Linux AppImage self-install; a Homebrew-installed macOS app runs `brew upgrade` in Terminal; a direct `.dmg`/`.deb` opens the release page). Check on demand or toggle it off in Settings.
 - **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
 - **Live theme switching** (auto / light / dark) and a popover that auto-fits its content above the taskbar.
 

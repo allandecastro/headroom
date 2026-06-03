@@ -113,6 +113,10 @@ Yes. It checks GitHub for a newer release on launch and every ~6 hours, and when
 
 ### In-app auto-update? Code signing?
 
-Auto-_install_ is planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr — so it'll wait until there are enough non-developer users to justify the cost. Until then Headroom **notifies** you of new versions (see above) and you grab the installer from the [Releases](https://github.com/allandecastro/headroom/releases) page.
+It depends on how you installed:
 
-On macOS specifically, "not signed" is why a directly-downloaded `.dmg` triggers the "damaged" Gatekeeper warning — the [Homebrew cask](https://github.com/allandecastro/headroom/tree/main/homebrew) sidesteps it for free by clearing the quarantine flag on install, while full notarization (which would also re-enable macOS self-updates) waits on the paid Developer Program.
+- **Windows (MSI)** and **Linux AppImage** self-install — the "Update now" button downloads, installs, and relaunches in place.
+- **macOS via Homebrew** — "Update now" launches `brew upgrade --cask headroom` in a Terminal window for you (Homebrew quits and replaces the app, then you reopen it). This is the recommended macOS update path.
+- **macOS direct `.dmg`** and **Linux `.deb`** stay notify-only: the button opens the [Releases](https://github.com/allandecastro/headroom/releases) page for a manual download.
+
+True in-app self-update on macOS (an in-place bundle swap like Windows/Linux) is what's still gated on cost: it needs Apple Developer Program notarization ($99/yr), so it waits until there are enough non-developer users to justify it. The same "not signed" gap is why a directly-downloaded `.dmg` triggers the "damaged" Gatekeeper warning — the [Homebrew cask](https://github.com/allandecastro/headroom/tree/main/homebrew) sidesteps both the warning and the update problem for free.
