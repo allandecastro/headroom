@@ -21,7 +21,10 @@ concurrency:
 jobs:
   verify:
     name: Screenshots up to date
-    runs-on: ubuntu-latest
+    # Windows so Chromium's font rendering matches a Windows maintainer's local
+    # `npm run screenshots` — the committed PNGs must be byte-identical to what
+    # CI regenerates, and fonts differ across OSes.
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +36,7 @@ jobs:
       - run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Regenerate
         run: npm run screenshots

@@ -67,6 +67,12 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 <p align="center"><sub>GitHub Copilot Business — a per-user AI-Credits quota when one is assigned &nbsp;·&nbsp; org-pooled credits, where there's no per-user usage to show.</sub></p>
 
+<p align="center">
+  <img src="docs/screenshots/copilot-multi-account.png" alt="Two GitHub Copilot accounts, one card each with its own quota" width="360" />
+</p>
+
+<p align="center"><sub>Multiple GitHub Copilot accounts — one card each, each renameable (here the second is labelled by its org).</sub></p>
+
 ---
 
 ## Features

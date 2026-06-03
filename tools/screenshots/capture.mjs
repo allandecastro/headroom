@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 const SHOTS = [
   ['quota', 'docs/screenshots/copilot-business-quota.png'],
   ['pooled', 'docs/screenshots/copilot-business-pooled.png'],
+  ['multi-account', 'docs/screenshots/copilot-multi-account.png'],
 ];
 
 const server = await createServer({
