@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
 import { TokenCard } from './components/TokenCard';
-import { openSettings, getSettings, getUpdate, installUpdate } from './lib/ipc';
+import { openSettings, openOnboarding, getSettings, getUpdate, installUpdate } from './lib/ipc';
 import type { Settings, UpdateProgress } from './lib/ipc';
 import { useFitWindowHeight } from './lib/useFitWindow';
 import type { Snapshot, UpdateInfo } from './lib/api';
@@ -141,15 +141,33 @@ export default function App() {
                 </span>
               </div>
             )}
-            {snapshot.services.map((svc) => (
-              <TokenCard
-                key={svc.id}
-                service={svc}
-                showClaudeDesign={showClaudeDesign}
-                warnPct={warnPct}
-                critPct={critPct}
-              />
-            ))}
+            {(() => {
+              // Hide services that were never connected — only show what the user
+              // actually signed into. Setup lives in the onboarding window.
+              const connected = snapshot.services.filter((svc) => svc.state !== 'needs_setup');
+              if (connected.length === 0) {
+                return (
+                  <section className="py-3 text-center">
+                    <p className="text-2xs text-fg-quaternary">No accounts connected.</p>
+                    <button
+                      onClick={() => openOnboarding().catch(console.error)}
+                      className="mt-1 text-[11px] font-medium text-fg-secondary hover:text-fg-primary"
+                    >
+                      Set up accounts…
+                    </button>
+                  </section>
+                );
+              }
+              return connected.map((svc) => (
+                <TokenCard
+                  key={svc.id}
+                  service={svc}
+                  showClaudeDesign={showClaudeDesign}
+                  warnPct={warnPct}
+                  critPct={critPct}
+                />
+              ));
+            })()}
 
             <footer className="mt-2 flex items-center justify-between pt-1 text-[12px] text-fg-tertiary">
               <button
