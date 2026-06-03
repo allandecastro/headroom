@@ -121,6 +121,11 @@ jobs:
       - run: npm ci
 
       - name: Build
+        env:
+          # createUpdaterArtifacts is on, so `tauri build` signs the updater
+          # bundles and fails without the key — same secret release.yml uses.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --target ${{ matrix.platform.target }}
 
       - uses: actions/upload-artifact@v4
