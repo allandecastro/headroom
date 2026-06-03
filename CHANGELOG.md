@@ -8,6 +8,27 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.4.0] — 2026-06-03
+
+### Added
+
+- **One-click updates.** "Check for updates" no longer just opens a browser —
+  clicking **Update now** (popover banner) or **Update to vX** (Settings)
+  downloads the new release, installs it, shows download progress, and relaunches
+  into the new version. Built on `tauri-plugin-updater` with minisign-signed
+  artifacts and a published `latest.json` manifest. ([#42])
+
+### Notes
+
+- Self-install runs on **Windows** (MSI — shows a UAC prompt) and **Linux
+  AppImage**. **macOS** (notarized code signing still deferred) and **Linux
+  `.deb`** keep the previous behavior: the button opens the release page for a
+  manual download.
+- Auto-install works only **from this release onward** — earlier builds don't
+  carry the updater, so they update to 1.4.0 via the browser one last time.
+
+[#42]: https://github.com/allandecastro/headroom/pull/42
+
 ## [1.3.3] — 2026-06-02
 
 ### Fixed

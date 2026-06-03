@@ -21,10 +21,11 @@ import {
   setAutostart,
   getUpdate,
   checkForUpdateNow,
+  installUpdate,
   copilotDiagnostics,
   claudeDiagnostics,
 } from './lib/ipc';
-import type { Settings } from './lib/ipc';
+import type { Settings, UpdateProgress } from './lib/ipc';
 import type { Snapshot, ServiceStatus, UpdateInfo } from './lib/api';
 
 // ─── Poll interval options ───────────────────────────────────────────────────
@@ -196,7 +197,10 @@ export default function SettingsPanel() {
   const [autostart, setAutostartState] = useState(false);
   const [appVersion, setAppVersion] = useState('');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'uptodate'>('idle');
+  const [updateStatus, setUpdateStatus] = useState<
+    'idle' | 'checking' | 'uptodate' | 'installing' | 'error'
+  >('idle');
+  const [installPct, setInstallPct] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 480);
 
@@ -247,6 +251,24 @@ export default function SettingsPanel() {
       });
   }
 
+  // "Update to vX": download + install + relaunch. On success the app restarts;
+  // on an unsupported platform (macOS / .deb) or failure, open the release page.
+  async function runInstallUpdate() {
+    if (!updateInfo) return;
+    setUpdateStatus('installing');
+    setInstallPct(null);
+    try {
+      const outcome = await installUpdate();
+      if (outcome?.kind === 'open_url') {
+        openUrl(outcome.url);
+        setUpdateStatus('idle');
+      }
+    } catch (err) {
+      console.error(err);
+      setUpdateStatus('error');
+    }
+  }
+
   // Autostart is OS-level (not in settings.json), so toggle it directly.
   function toggleAutostart(enabled: boolean) {
     setAutostartState(enabled);
@@ -263,9 +285,16 @@ export default function SettingsPanel() {
     const unlisten = listen<Snapshot>('tokens-updated', (event) => {
       setSnapshot(event.payload);
     });
+    const unlistenProgress = listen<UpdateProgress>('update-progress', (event) => {
+      const { downloaded, content_length } = event.payload;
+      setInstallPct(
+        content_length ? Math.min(100, Math.round((downloaded / content_length) * 100)) : null,
+      );
+    });
 
     return () => {
       unlisten.then((fn) => fn()).catch(console.error);
+      unlistenProgress.then((fn) => fn()).catch(console.error);
     };
   }, []);
 
@@ -425,12 +454,25 @@ export default function SettingsPanel() {
               </span>
             </div>
             {updateInfo ? (
-              <button
-                onClick={() => openUrl(updateInfo.url)}
-                className="text-[10.5px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
-              >
-                Download v{updateInfo.version} →
-              </button>
+              updateStatus === 'installing' ? (
+                <span className="text-[10.5px] text-fg-quaternary">
+                  {installPct !== null ? `Downloading… ${installPct}%` : 'Installing…'}
+                </span>
+              ) : updateStatus === 'error' ? (
+                <button
+                  onClick={() => openUrl(updateInfo.url)}
+                  className="text-[10.5px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+                >
+                  Update failed — open page →
+                </button>
+              ) : (
+                <button
+                  onClick={runInstallUpdate}
+                  className="text-[10.5px] font-medium text-state-ok-text hover:underline dark:text-state-ok-text-dark"
+                >
+                  Update to v{updateInfo.version} →
+                </button>
+              )
             ) : (
               <button
                 onClick={runUpdateCheck}

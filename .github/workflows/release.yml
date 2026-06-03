@@ -83,6 +83,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing — required for tauri-plugin-updater to accept the
+          # downloaded artifact. Generate with `tauri signer generate`; the
+          # public key lives in tauri.conf.json (plugins.updater.pubkey).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Add the following for signed macOS builds (Phase 5):
           # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -94,12 +99,94 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target ${{ matrix.platform.target }}
 
+  updater-manifest:
+    name: Assemble latest.json
+    # The build matrix runs one job per OS, and each emits its own `latest.json`
+    # that overwrites the others on upload — so the published manifest would only
+    # ever describe the last platform to finish. Rebuild a single merged manifest
+    # from the signed artifacts once every platform is done. macOS is omitted on
+    # purpose (notarized signing deferred — that build falls back to the browser).
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and upload latest.json
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releaseId = ${{ needs.create-release.outputs.release_id }};
+            const tag = context.ref.replace('refs/tags/', '');
+            const version = tag.replace(/^v/, '');
+
+            const { data: assets } = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              per_page: 100,
+            });
+            const byName = new Map(assets.map((a) => [a.name, a]));
+
+            // Map an updater artifact filename to its latest.json platform key.
+            function platformKey(name) {
+              if (/\.msi$/i.test(name) || /\.exe$/i.test(name)) return 'windows-x86_64';
+              if (/\.AppImage$/i.test(name)) return 'linux-x86_64';
+              return null; // .app.tar.gz (macOS), .deb, etc. — no self-update
+            }
+
+            const platforms = {};
+            for (const asset of assets) {
+              if (!asset.name.endsWith('.sig')) continue;
+              const base = byName.get(asset.name.slice(0, -4));
+              if (!base) continue;
+              const key = platformKey(base.name);
+              if (!key) continue;
+
+              const sig = await github.rest.repos.getReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+                headers: { accept: 'application/octet-stream' },
+              });
+              platforms[key] = {
+                signature: Buffer.from(sig.data).toString('utf8').trim(),
+                url: base.browser_download_url,
+              };
+            }
+
+            if (Object.keys(platforms).length === 0) {
+              throw new Error('No updater artifacts (.sig) found — cannot build latest.json');
+            }
+
+            const manifest = {
+              version,
+              notes: `See https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag}`,
+              pub_date: new Date().toISOString(),
+              platforms,
+            };
+
+            // Replace the per-platform latest.json files left by the matrix jobs.
+            const existing = assets.find((a) => a.name === 'latest.json');
+            if (existing) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: existing.id,
+              });
+            }
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              name: 'latest.json',
+              data: JSON.stringify(manifest, null, 2),
+            });
+            core.info(`latest.json written for: ${Object.keys(platforms).join(', ')}`);
+
   publish:
     name: Publish release
     # Needs `create-release` too, otherwise `needs.create-release.outputs.release_id`
     # renders as empty in the script body and the github-script step crashes with
     # `SyntaxError: Unexpected token ','` (seen on the v1.0.0 tag).
-    needs: [create-release, build]
+    needs: [create-release, build, updater-manifest]
     runs-on: ubuntu-latest
     steps:
       - name: Publish

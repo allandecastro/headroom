@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 use tracing::{error, warn};
 
 use crate::orchestrator::poll_once;
@@ -270,6 +271,97 @@ pub async fn check_for_update_now(
         let _ = app.emit("update-available", info);
     }
     Ok(result)
+}
+
+/// What the renderer should do after clicking "Update now". A successful in-app
+/// install never yields this value — the app restarts into the new version
+/// instead. The only variant the renderer sees is the browser fallback (macOS,
+/// `.deb`, or when no signed manifest entry is available for this platform).
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum InstallOutcome {
+    OpenUrl { url: String },
+}
+
+/// Download progress, emitted as the `update-progress` event during install.
+#[derive(Clone, serde::Serialize)]
+struct UpdateProgress {
+    downloaded: u64,
+    content_length: Option<u64>,
+}
+
+/// Whether the running build can replace itself in place. Windows (MSI) and
+/// Linux AppImage can; macOS (needs notarized signing, deferred) and Linux
+/// `.deb` (owned by the system package manager) cannot — those fall back to the
+/// browser download. A `.deb` install is just a non-AppImage Linux process.
+fn self_install_supported() -> bool {
+    if cfg!(target_os = "windows") {
+        true
+    } else if cfg!(target_os = "linux") {
+        std::env::var_os("APPIMAGE").is_some()
+    } else {
+        false
+    }
+}
+
+/// Download and install the latest release, then relaunch — the "Update now"
+/// button. On platforms that can't self-install (and on any updater failure) it
+/// returns `OpenUrl` so the renderer opens the release page instead, preserving
+/// the old manual flow. Progress is streamed via the `update-progress` event.
+#[tauri::command]
+pub async fn install_update(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<InstallOutcome, String> {
+    let fallback_url = state
+        .update
+        .read()
+        .await
+        .as_ref()
+        .map(|u| u.url.clone())
+        .unwrap_or_else(|| crate::updates::RELEASES_PAGE.to_string());
+
+    if !self_install_supported() {
+        return Ok(InstallOutcome::OpenUrl { url: fallback_url });
+    }
+
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    let update = match updater.check().await {
+        Ok(Some(update)) => update,
+        // No signed manifest entry for this platform (or not actually newer) —
+        // fall back rather than dead-end the user.
+        Ok(None) => return Ok(InstallOutcome::OpenUrl { url: fallback_url }),
+        Err(e) => {
+            warn!(?e, "updater check failed; falling back to browser download");
+            return Ok(InstallOutcome::OpenUrl { url: fallback_url });
+        }
+    };
+
+    // `on_chunk` must be `Fn`, so accumulate through an atomic rather than a
+    // captured `mut`.
+    let downloaded = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let progress_app = app.clone();
+    let counter = downloaded.clone();
+    update
+        .download_and_install(
+            move |chunk, content_length| {
+                let total = counter.fetch_add(chunk as u64, std::sync::atomic::Ordering::Relaxed)
+                    + chunk as u64;
+                let _ = progress_app.emit(
+                    "update-progress",
+                    UpdateProgress {
+                        downloaded: total,
+                        content_length,
+                    },
+                );
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Installed — relaunch into the new version. `restart` diverges.
+    app.restart();
 }
 
 /// Diagnostics: fetch the raw `copilot_internal/user` JSON (token redacted) so a
