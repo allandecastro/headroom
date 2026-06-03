@@ -181,7 +181,30 @@ function CopilotAccountRow({
   onChange: () => void;
 }) {
   const [label, setLabel] = useState(account.label);
+  const [diagState, setDiagState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
   const state = svc?.state;
+
+  // Copy THIS account's raw payload (token redacted) — account-scoped so the
+  // right account's diagnostics land on the clipboard with several connected.
+  async function copyDiag() {
+    setDiagState('copying');
+    try {
+      await navigator.clipboard.writeText(await copilotDiagnostics(account.id));
+      setDiagState('done');
+      setTimeout(() => setDiagState('idle'), 1500);
+    } catch (e) {
+      console.error(e);
+      setDiagState('error');
+    }
+  }
+  const diagLabel =
+    diagState === 'copying'
+      ? 'Copying…'
+      : diagState === 'done'
+        ? 'Copied ✓'
+        : diagState === 'error'
+          ? 'Failed'
+          : 'Diagnostics';
 
   const statusEl =
     state === 'active' ? (
@@ -222,6 +245,13 @@ function CopilotAccountRow({
           {svc?.plan ? ` · ${svc.plan}` : ''} · {statusEl}
         </span>
       </div>
+      <button
+        onClick={copyDiag}
+        disabled={diagState === 'copying'}
+        className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+      >
+        {diagLabel}
+      </button>
       <Button
         className="text-xxs px-[9px] py-[3px]"
         onClick={() => removeCopilotAccount(account.id).then(onChange).catch(console.error)}
@@ -615,9 +645,9 @@ export default function SettingsPanel() {
           </Row>
           <Row>
             <div className="flex flex-1 flex-col">
-              <span className="text-[12px] text-fg-secondary">Diagnostics</span>
+              <span className="text-[12px] text-fg-secondary">Claude diagnostics</span>
               <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
-                Copy the raw usage payload (token redacted) to report a problem
+                Copy Claude’s raw usage payload (token redacted) to report a problem
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -627,13 +657,6 @@ export default function SettingsPanel() {
                 className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
               >
                 {diagLabel('claude', 'Claude')}
-              </button>
-              <button
-                onClick={() => copyDiagnostics('copilot')}
-                disabled={diag?.state === 'copying'}
-                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
-              >
-                {diagLabel('copilot', 'Copilot')}
               </button>
             </div>
           </Row>
