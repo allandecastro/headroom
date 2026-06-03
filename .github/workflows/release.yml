@@ -202,3 +202,61 @@ jobs:
               release_id: ${{ needs.create-release.outputs.release_id }},
               draft: false,
             })
+
+  update-tap:
+    name: Update Homebrew tap
+    # Runs after the release is public so the DMG is reachable at its stable
+    # download URL. Regenerates the cask (version + sha256) from the published
+    # aarch64 DMG and pushes it to the allandecastro/homebrew-headroom tap, so
+    # `brew install --cask allandecastro/headroom/headroom` always tracks the
+    # latest release with no manual step. Skips cleanly if the cross-repo PAT
+    # secret isn't configured, so it never blocks a release.
+    needs: [publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute DMG sha256
+        id: dmg
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          url="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Headroom_${version}_aarch64.dmg"
+          echo "Downloading $url"
+          curl -fSL -o headroom.dmg "$url"
+          sha="$(sha256sum headroom.dmg | awk '{print $1}')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "Resolved version=$version sha256=$sha"
+
+      - name: Render cask from template
+        run: |
+          sed -i -E "s/^  version \".*\"/  version \"${{ steps.dmg.outputs.version }}\"/" homebrew/Casks/headroom.rb
+          sed -i -E "s/^  sha256 \".*\"/  sha256 \"${{ steps.dmg.outputs.sha256 }}\"/" homebrew/Casks/headroom.rb
+          echo '--- rendered cask ---'
+          cat homebrew/Casks/headroom.rb
+
+      - name: Push to tap repo
+        env:
+          # Classic PAT with `repo` scope (or fine-grained with Contents:write on
+          # the tap repo). The built-in GITHUB_TOKEN can't push to another repo.
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$TAP_GITHUB_TOKEN" ]; then
+            echo "::warning::TAP_GITHUB_TOKEN not set — skipping tap update."
+            echo "Add a PAT with 'repo' scope as the TAP_GITHUB_TOKEN secret to auto-publish the cask."
+            exit 0
+          fi
+          git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/allandecastro/homebrew-headroom.git" tap
+          mkdir -p tap/Casks
+          cp homebrew/Casks/headroom.rb tap/Casks/headroom.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "Cask already up to date — nothing to push."
+            exit 0
+          fi
+          git add Casks/headroom.rb
+          git commit -m "headroom ${{ steps.dmg.outputs.version }}"
+          git push
+          echo "Pushed headroom ${{ steps.dmg.outputs.version }} to the tap."

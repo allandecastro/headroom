@@ -28,20 +28,35 @@ Homebrew resolves `allandecastro/headroom/headroom` to a repository named
 
 3. Commit and push. Users can now run the `brew install --cask` command above.
 
-> The canonical copy of the cask lives here in the app repo (`homebrew/Casks/headroom.rb`)
-> so it's versioned alongside the code; the tap repo is just the published mirror
-> Homebrew reads from.
+> `homebrew/Casks/headroom.rb` in this repo is the **template / source of truth**
+> for the cask's structure; the tap repo holds the published copy Homebrew reads,
+> with `version` + `sha256` filled in for the latest release.
 
-## Updating on each release
+## Updating on each release — automated
 
-After a release is published, bump the pinned `version` + `sha256` and mirror it
-to the tap:
+The `update-tap` job in [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+does this for you on every `v*` tag: once the release is published, it downloads
+the built `aarch64` DMG, computes its `sha256`, renders the cask from the template
+above, and pushes it to `allandecastro/homebrew-headroom`. **No manual step.**
+
+### One-time secret setup (required for the automation)
+
+The built-in `GITHUB_TOKEN` can't push to a second repo, so the job needs a
+token with write access to the tap:
+
+1. Create a token — either:
+   - a **classic** [Personal Access Token](https://github.com/settings/tokens/new) with the **`repo`** scope, or
+   - a **fine-grained** token scoped to **`allandecastro/homebrew-headroom`** with **Contents: Read and write**.
+2. Add it to the **app repo** at **Settings → Secrets and variables → Actions → New repository secret**, named **`TAP_GITHUB_TOKEN`**.
+
+Until that secret exists the job skips itself with a warning — releases are never
+blocked — and you can fall back to the manual path below.
+
+### Manual fallback
 
 ```bash
 # From the headroom repo root, after the GitHub release is live:
 scripts/update-cask.sh 1.5.2          # downloads the DMG, recomputes sha256
-
-# Then copy the updated cask into the tap repo and push:
 cp homebrew/Casks/headroom.rb ../homebrew-headroom/Casks/headroom.rb
 cd ../homebrew-headroom && git commit -am "headroom 1.5.2" && git push
 ```
