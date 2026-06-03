@@ -15,5 +15,7 @@ output is byte-identical across runs and machines.
 
 - **Add a state:** add an entry to `STATES` in `harness.tsx` and a row in `SHOTS`
   in `capture.mjs`.
-- **CI:** `.github/workflows/screenshots.yml` runs this on every PR and commits
-  any changes back to the branch automatically.
+- **CI:** `.github/workflows/screenshots.yml` runs this on every PR and **fails
+  if the committed screenshots are stale** — so when the UI changes, run
+  `npm run screenshots` and commit the result. (Verify-only rather than
+  auto-commit, so you review the image diffs and there's no write token to manage.)
