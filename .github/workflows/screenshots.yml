@@ -25,6 +25,10 @@ jobs:
     # `npm run screenshots` — the committed PNGs must be byte-identical to what
     # CI regenerates, and fonts differ across OSes.
     runs-on: windows-latest
+    defaults:
+      run:
+        # The drift check is a bash script; the Windows runner defaults to pwsh.
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
