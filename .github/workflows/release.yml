@@ -146,9 +146,12 @@ jobs:
                 asset_id: asset.id,
                 headers: { accept: 'application/octet-stream' },
               });
+              // Build the URL from the tag, NOT `base.browser_download_url`:
+              // at this point the release is still a draft, so the API returns a
+              // `…/download/untagged-<hash>/…` URL that 404s once published.
               platforms[key] = {
                 signature: Buffer.from(sig.data).toString('utf8').trim(),
-                url: base.browser_download_url,
+                url: `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/${tag}/${encodeURIComponent(base.name)}`,
               };
             }
 
