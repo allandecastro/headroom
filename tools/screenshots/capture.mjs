@@ -1,23 +1,26 @@
-// Regenerate the README popover screenshots deterministically.
+// Regenerate the README screenshots deterministically.
 //
 // Boots Vite programmatically (so the real React components + Tailwind render),
-// drives headless Chromium via Playwright, and writes one PNG per state to
-// docs/screenshots/. Run with `npm run screenshots`.
+// drives headless Chromium via Playwright, and writes one PNG per state. Run
+// with `npm run screenshots`.
 //
-// Prereq: the Chromium browser binary — `npx playwright install chromium`
-// (CI runs `npx playwright install --with-deps chromium`).
+// Card states screenshot the #shot element; window states (the real App /
+// Settings / Onboarding components, which fill the window) are clipped to the
+// rendered content height.
+//
+// Prereq: the Chromium browser binary — `npx playwright install chromium`.
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
-// state (harness ?state=) → output PNG
 const SHOTS = [
-  ['quota', 'docs/screenshots/copilot-business-quota.png'],
-  ['pooled', 'docs/screenshots/copilot-business-pooled.png'],
-  ['multi-account', 'docs/screenshots/copilot-multi-account.png'],
+  { state: 'quota', out: 'docs/screenshots/copilot-business-quota.png', width: 360 },
+  { state: 'pooled', out: 'docs/screenshots/copilot-business-pooled.png', width: 360 },
+  { state: 'popover', out: 'docs/screenshots/widget.png', width: 360, window: true },
+  { state: 'settings', out: 'docs/screenshots/settings.png', width: 480, window: true },
+  { state: 'onboarding', out: 'docs/screenshots/setup.png', width: 480, window: true },
 ];
 
 const server = await createServer({
-  // A non-default port so this never clashes with a running `npm run dev`.
   server: { port: 5599, strictPort: false },
   logLevel: 'warn',
 });
@@ -27,24 +30,39 @@ console.log(`harness server: ${base}`);
 
 const browser = await chromium.launch();
 try {
-  // Pin scale, timezone, and locale so the render is identical on any machine —
-  // the card shows clock-relative reset text, which would otherwise drift every
-  // run (and make the auto-commit workflow churn).
-  const page = await browser.newPage({
-    deviceScaleFactor: 2,
-    timezoneId: 'UTC',
-    locale: 'en-US',
-  });
-  // Freeze the clock so `Date.now()` / `new Date()` in the page are constant —
-  // the reset countdown becomes a fixed "in 27d 15h" instead of live.
-  await page.clock.install({ time: new Date('2026-06-01T09:00:00Z') });
-  for (const [state, out] of SHOTS) {
-    await page.goto(`${base}/tools/screenshots/harness.html?state=${state}`, {
-      waitUntil: 'load',
+  for (const { state, out, width, window: isWindow } of SHOTS) {
+    // Per-shot page: fixed width, frozen clock + timezone + locale so the render
+    // is byte-identical across runs (the card shows clock-relative reset text).
+    const page = await browser.newPage({
+      deviceScaleFactor: 2,
+      timezoneId: 'UTC',
+      locale: 'en-US',
+      viewport: { width, height: 1800 },
     });
-    await page.waitForSelector('#shot');
-    await page.waitForTimeout(400); // let fonts settle
-    await page.locator('#shot').screenshot({ path: out });
+    await page.clock.install({ time: new Date('2026-06-01T09:00:00Z') });
+    await page.goto(`${base}/tools/screenshots/harness.html?state=${state}`, { waitUntil: 'load' });
+
+    if (isWindow) {
+      // Real window component — clip to the inner content element's height so
+      // the shot is tight (the outer element is full window height).
+      await page.waitForFunction(
+        () => document.querySelector('#root')?.firstElementChild?.firstElementChild,
+      );
+      await page.waitForTimeout(600); // let mocked data resolve + re-render
+      const height = await page.evaluate(() =>
+        Math.ceil(
+          document
+            .querySelector('#root')
+            .firstElementChild.firstElementChild.getBoundingClientRect().bottom,
+        ),
+      );
+      await page.screenshot({ path: out, clip: { x: 0, y: 0, width, height } });
+    } else {
+      await page.waitForSelector('#shot');
+      await page.waitForTimeout(400);
+      await page.locator('#shot').screenshot({ path: out });
+    }
+    await page.close();
     console.log(`wrote ${out}`);
   }
 } finally {

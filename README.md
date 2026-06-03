@@ -46,18 +46,18 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/widget.png" alt="Headroom popover showing live Claude and Copilot quotas" width="320" />
+  <img src="docs/screenshots/widget.png" alt="Headroom popover showing live Claude and multiple GitHub Copilot account quotas" width="320" />
 </p>
 
-<p align="center"><sub>The menu-bar popover — live quotas, reset countdowns, burndown projection.</sub></p>
+<p align="center"><sub>The menu-bar popover — live quotas for Claude and every connected GitHub Copilot account, with reset countdowns and burndown projection.</sub></p>
 
 <p align="center">
   <img src="docs/screenshots/setup.png" alt="Onboarding window" width="360" />
   &nbsp;
-  <img src="docs/screenshots/settings.png" alt="Settings window" width="360" />
+  <img src="docs/screenshots/settings.png" alt="Settings window with multiple GitHub Copilot accounts" width="360" />
 </p>
 
-<p align="center"><sub>Onboarding &nbsp;·&nbsp; Settings</sub></p>
+<p align="center"><sub>Onboarding &nbsp;·&nbsp; Settings — connect Claude and manage multiple GitHub Copilot accounts (add, rename, remove).</sub></p>
 
 <p align="center">
   <img src="docs/screenshots/copilot-business-quota.png" alt="GitHub Copilot Business showing a per-user AI-Credits quota" width="360" />
@@ -66,12 +66,6 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 </p>
 
 <p align="center"><sub>GitHub Copilot Business — a per-user AI-Credits quota when one is assigned &nbsp;·&nbsp; org-pooled credits, where there's no per-user usage to show.</sub></p>
-
-<p align="center">
-  <img src="docs/screenshots/copilot-multi-account.png" alt="Two GitHub Copilot accounts, one card each with its own quota" width="360" />
-</p>
-
-<p align="center"><sub>Multiple GitHub Copilot accounts — one card each, each renameable (here the second is labelled by its org).</sub></p>
 
 ---
 
