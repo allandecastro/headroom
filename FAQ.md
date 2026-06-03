@@ -51,6 +51,19 @@ Easiest path: click **Sign in with Claude** in onboarding — the embedded webvi
 
 ## Troubleshooting
 
+### macOS says "Headroom is damaged and can't be opened. You should move it to the Trash."
+
+The download isn't actually damaged. Headroom is **ad-hoc signed but not yet notarized** through the Apple Developer Program, so when macOS sees the quarantine flag it puts on internet downloads, Gatekeeper refuses to open the app — and on Apple Silicon it phrases that refusal as "damaged". Two fixes:
+
+- **Install via Homebrew** (recommended) — `brew install --cask allandecastro/headroom/headroom`. The cask clears the quarantine flag for you, so the app just opens.
+- **Or clear it yourself** after dragging Headroom into `/Applications`:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Headroom.app
+  ```
+
+This goes away entirely once the macOS build is notarized (see [In-app auto-update? Code signing?](#in-app-auto-update-code-signing) below).
+
 ### My tray icon is hidden!
 
 On Windows 11, new tray icons land in the hidden overflow under the `^` chevron near the clock. Click `^`, find Headroom, drag it onto the always-visible taskbar.
@@ -101,3 +114,5 @@ Yes. It checks GitHub for a newer release on launch and every ~6 hours, and when
 ### In-app auto-update? Code signing?
 
 Auto-_install_ is planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr — so it'll wait until there are enough non-developer users to justify the cost. Until then Headroom **notifies** you of new versions (see above) and you grab the installer from the [Releases](https://github.com/allandecastro/headroom/releases) page.
+
+On macOS specifically, "not signed" is why a directly-downloaded `.dmg` triggers the "damaged" Gatekeeper warning — the [Homebrew cask](https://github.com/allandecastro/headroom/tree/main/homebrew) sidesteps it for free by clearing the quarantine flag on install, while full notarization (which would also re-enable macOS self-updates) waits on the paid Developer Program.
