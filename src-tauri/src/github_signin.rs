@@ -129,6 +129,57 @@ impl GithubSignin {
     }
 }
 
+const API_BASE_URL: &str = "https://api.github.com";
+
+/// The identity behind a GitHub token — used to key a Copilot account so several
+/// accounts can coexist. `name` falls back to the login when GitHub has none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GithubIdentity {
+    pub id: String,
+    pub login: String,
+    pub name: String,
+}
+
+/// Resolve the GitHub identity for a token via `GET /user`. Distinct from the
+/// device-flow host (`github.com`) — the user API lives on `api.github.com`.
+pub async fn resolve_identity(token: &str) -> anyhow::Result<GithubIdentity> {
+    resolve_identity_at(API_BASE_URL, token).await
+}
+
+async fn resolve_identity_at(base_url: &str, token: &str) -> anyhow::Result<GithubIdentity> {
+    let client = Client::builder()
+        .user_agent(concat!("Headroom/", env!("CARGO_PKG_VERSION")))
+        .timeout(Duration::from_secs(15))
+        .build()?;
+    let resp = client
+        .get(format!("{base_url}/user"))
+        .header(header::ACCEPT, "application/vnd.github+json")
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        anyhow::bail!("GitHub /user failed: HTTP {}", resp.status());
+    }
+    let body: UserResponse = resp.json().await?;
+    let login = body.login;
+    Ok(GithubIdentity {
+        id: body.id.to_string(),
+        name: body
+            .name
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| login.clone()),
+        login,
+    })
+}
+
+#[derive(Deserialize)]
+struct UserResponse {
+    id: u64,
+    login: String,
+    #[serde(default)]
+    name: Option<String>,
+}
+
 /// Classify a token-poll response. Pure so it can be unit-tested without timing.
 fn token_outcome(body: &TokenResponse) -> TokenOutcome {
     if let Some(token) = body.access_token.as_deref() {
@@ -269,5 +320,40 @@ mod tests {
             token_outcome(&token(json!({ "access_token": "" }))),
             TokenOutcome::Failed(_)
         ));
+    }
+
+    #[tokio::test]
+    async fn resolve_identity_reads_user_endpoint() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/user"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": 12345,
+                "login": "alice",
+                "name": "Alice Example"
+            })))
+            .mount(&server)
+            .await;
+
+        let id = resolve_identity_at(&server.uri(), "tok").await.unwrap();
+        assert_eq!(id.id, "12345");
+        assert_eq!(id.login, "alice");
+        assert_eq!(id.name, "Alice Example");
+    }
+
+    #[tokio::test]
+    async fn resolve_identity_falls_back_to_login_when_name_absent() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/user"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": 7,
+                "login": "bob"
+            })))
+            .mount(&server)
+            .await;
+
+        let id = resolve_identity_at(&server.uri(), "tok").await.unwrap();
+        assert_eq!(id.name, "bob");
     }
 }

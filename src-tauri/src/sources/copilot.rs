@@ -106,6 +106,14 @@ pub enum CopilotUsage {
 pub struct CopilotSource {
     client: Client,
     base_url: String,
+    /// `Some(github_user_id)` for a registered account (reads
+    /// `copilot.token.<id>`); `None` for the legacy single-token mode
+    /// (reads `copilot.token`, used until a legacy install migrates).
+    account_id: Option<String>,
+    /// Service id surfaced to the renderer: `"copilot"` or `"copilot:<id>"`.
+    full_id: String,
+    /// Card label: `"GitHub Copilot"` or the account's user-set label.
+    display_name: String,
 }
 
 impl Default for CopilotSource {
@@ -121,7 +129,23 @@ impl CopilotSource {
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("reqwest client builds");
-        Self { client, base_url }
+        Self {
+            client,
+            base_url,
+            account_id: None,
+            full_id: "copilot".to_string(),
+            display_name: "GitHub Copilot".to_string(),
+        }
+    }
+
+    /// A source bound to one connected account — reads that account's token and
+    /// surfaces a per-account id (`copilot:<id>`) and label.
+    pub fn for_account(account_id: String, label: String) -> Self {
+        let mut source = Self::build(DEFAULT_BASE_URL.to_string());
+        source.full_id = format!("copilot:{account_id}");
+        source.display_name = label;
+        source.account_id = Some(account_id);
+        source
     }
 
     /// Override the base URL — used only in tests to point at a [`wiremock`] server.
@@ -169,8 +193,8 @@ impl CopilotSource {
         let quotas = usage_to_quotas(&usage);
 
         Ok(ServiceStatus {
-            id: "copilot".into(),
-            name: "GitHub Copilot".into(),
+            id: self.full_id.clone(),
+            name: self.display_name.clone(),
             plan: plan_label(&body.copilot_plan),
             state: ServiceState::Active,
             quotas,
@@ -208,18 +232,20 @@ impl CopilotSource {
 
 #[async_trait]
 impl QuotaSource for CopilotSource {
-    fn id(&self) -> &'static str {
-        "copilot"
+    fn id(&self) -> &str {
+        &self.full_id
     }
 
-    fn name(&self) -> &'static str {
-        "GitHub Copilot"
+    fn name(&self) -> &str {
+        &self.display_name
     }
 
     async fn fetch(&self, creds: &Credentials) -> Result<ServiceStatus, SourceError> {
-        let token = creds
-            .copilot_token()
-            .ok_or(SourceError::MissingCredentials("copilot.token"))?;
+        let token = match &self.account_id {
+            Some(id) => creds.copilot_token_for(id),
+            None => creds.copilot_token(),
+        }
+        .ok_or(SourceError::MissingCredentials("copilot.token"))?;
         self.fetch_with(&token).await
     }
 }

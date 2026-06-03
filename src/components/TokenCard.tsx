@@ -15,7 +15,8 @@ interface Props {
 
 function serviceIcon(id: string): ReactNode {
   if (id === 'claude') return <ClaudeIcon />;
-  if (id === 'copilot') return <GitHubIcon />;
+  // Copilot ids are "copilot" (legacy) or "copilot:<account-id>" (multi-account).
+  if (id === 'copilot' || id.startsWith('copilot:')) return <GitHubIcon />;
   return null;
 }
 

@@ -183,21 +183,27 @@ A source that has no stored credentials returns `SourceError::MissingCredentials
 
 ### `credentials`
 
-Thin wrapper around the `keyring` crate. All values stored under service name `headroom`. Per-account keys:
+Thin wrapper around the `keyring` crate. All values stored under service name `headroom`. Keys:
 
 - `claude.session` — the `sessionKey` cookie value
 - `claude.orgId` — cached organization UUID
-- `copilot.token` — GitHub token (any classic/OAuth token or PAT)
+- `copilot.accounts` — JSON registry of connected Copilot accounts: `[{ id, login, label }, …]` (id = GitHub user id; `label` defaults to the login but is renameable to e.g. the org name)
+- `copilot.token.<id>` — that account's GitHub token
 
-`copilot.username` / `copilot.plan` are legacy keys from the old billing API. They are no longer written, but `clear_credentials` still deletes them so sign-out cleans up upgraded installs.
+**Multiple Copilot accounts** are supported: each connected GitHub account is keyed by its user id, so a personal seat and a work seat (or seats in different orgs) each get their own token, source, and card. The per-user `copilot_internal/user` endpoint exposes no org, so accounts are identified by login and distinguished by the editable label.
+
+`copilot.token` (no id) is the pre-multi-account single-token key, read only for one-time migration into the registry: on startup, if a legacy token exists and the registry is empty, its identity is resolved via `GET /user` and folded into `copilot.accounts`. `copilot.username` / `copilot.plan` are older legacy keys from the original billing API. All three are deleted on sign-out so upgraded installs are wiped clean.
 
 The renderer writes these via IPC commands (the onboarding flow calls them; the renderer never touches the keychain directly):
 
 | Command                           | Effect                                                                    |
 | --------------------------------- | ------------------------------------------------------------------------- |
 | `set_claude_session(session_key)` | Writes `claude.session`                                                   |
-| `set_copilot_token(token)`        | Writes `copilot.token`                                                    |
-| `clear_credentials(service)`      | Deletes every key under the `claude` or `copilot` prefix                  |
+| `set_copilot_token(token)`        | Resolves the token's GitHub identity, registers it as a Copilot account  |
+| `list_copilot_accounts()`         | Lists connected Copilot accounts                                          |
+| `remove_copilot_account(id)`      | Disconnects one Copilot account (token + registry entry)                 |
+| `set_copilot_account_label(id, …)`| Renames a Copilot account's display label                                |
+| `clear_credentials(service)`      | Deletes every key under the `claude` or `copilot` prefix (all accounts)  |
 
 ### `commands`
 

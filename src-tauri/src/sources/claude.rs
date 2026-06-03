@@ -169,11 +169,11 @@ impl ClaudeSource {
 
 #[async_trait]
 impl QuotaSource for ClaudeSource {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         "claude"
     }
 
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "Claude"
     }
 

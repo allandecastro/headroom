@@ -7,10 +7,73 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tracing::{error, info, warn};
 
+use crate::credentials::{CopilotAccount, Credentials};
 use crate::notifications::notify_thresholds;
-use crate::sources::{QuotaWindow, ServiceState, ServiceStatus, SourceError};
+use crate::sources::claude::ClaudeSource;
+use crate::sources::copilot::CopilotSource;
+use crate::sources::{QuotaSource, QuotaWindow, ServiceState, ServiceStatus, SourceError};
 use crate::tray;
 use crate::{AppState, Snapshot};
+
+/// Compose the live source list from connected credentials: Claude (always) plus
+/// one Copilot source per connected account. A not-yet-migrated legacy
+/// `copilot.token` yields a single legacy Copilot source so its card survives
+/// until migration. When no Copilot account is connected, no Copilot source is
+/// added — with the "hide unconnected" popover that simply shows no card.
+pub(crate) fn build_sources(creds: &Credentials) -> Vec<Arc<dyn QuotaSource>> {
+    let mut sources: Vec<Arc<dyn QuotaSource>> = vec![Arc::new(ClaudeSource::default())];
+    let accounts = creds.copilot_accounts();
+    if accounts.is_empty() {
+        if creds.copilot_token().is_some() {
+            sources.push(Arc::new(CopilotSource::default()));
+        }
+    } else {
+        for acct in accounts {
+            sources.push(Arc::new(CopilotSource::for_account(acct.id, acct.label)));
+        }
+    }
+    sources
+}
+
+/// Rebuild the live source list after the connected accounts change.
+pub(crate) async fn rebuild_sources(state: &AppState) {
+    let sources = build_sources(&state.credentials);
+    *state.sources.write().await = sources;
+}
+
+/// One-time: fold a pre-multi-account `copilot.token` into the account registry
+/// by resolving its GitHub identity. No-op once a registry exists or no legacy
+/// token is present; the resolve call is retried on the next launch if it fails
+/// (e.g. offline), so the legacy card keeps working in the meantime.
+pub(crate) async fn migrate_legacy_copilot(creds: &Credentials) {
+    if !creds.copilot_accounts().is_empty() {
+        return;
+    }
+    let Some(token) = creds.copilot_token() else {
+        return;
+    };
+    match crate::github_signin::resolve_identity(&token).await {
+        Ok(identity) => {
+            let account = CopilotAccount {
+                id: identity.id,
+                login: identity.login.clone(),
+                label: identity.login,
+            };
+            if let Err(e) = creds.add_copilot_account(account, &token) {
+                warn!(?e, "failed to migrate legacy Copilot token");
+                return;
+            }
+            if let Err(e) = creds.delete("copilot.token") {
+                warn!(?e, "failed to delete legacy Copilot token after migration");
+            }
+            info!("migrated legacy Copilot token into the account registry");
+        }
+        Err(e) => warn!(
+            ?e,
+            "could not resolve legacy Copilot identity; will retry next launch"
+        ),
+    }
+}
 
 /// Long windows where a 24h sample delta is a meaningful pace signal.
 /// FiveHour is intentionally excluded — the lookback would dwarf the window.
@@ -35,9 +98,12 @@ const UPDATE_CHECK_INTERVAL_SECS: i64 = 6 * 3600;
 
 /// Fetch every source once and persist the resulting snapshot.
 pub(crate) async fn poll_once(state: Arc<AppState>) -> Snapshot {
-    let mut services = Vec::with_capacity(state.sources.len());
+    // Snapshot the source list (cheap Arc clones) so we never hold the lock
+    // across the network fetches below.
+    let sources = state.sources.read().await.clone();
+    let mut services = Vec::with_capacity(sources.len());
 
-    for source in &state.sources {
+    for source in &sources {
         let id = source.id();
         let name = source.name();
         let status =
@@ -132,6 +198,10 @@ fn classify(id: &str, name: &str, result: Result<ServiceStatus, SourceError>) ->
 pub(crate) fn spawn_poll_loop(handle: AppHandle, state: Arc<AppState>) {
     tauri::async_runtime::spawn(async move {
         info!("starting polling loop");
+        // Migrate a legacy single token into the registry, then build the live
+        // source list from connected accounts before the first poll.
+        migrate_legacy_copilot(&state.credentials).await;
+        rebuild_sources(&state).await;
         loop {
             let snapshot = poll_once(state.clone()).await;
             if let Err(e) = handle.emit("tokens-updated", &snapshot) {
@@ -281,10 +351,10 @@ mod tests {
 
     #[async_trait]
     impl QuotaSource for MockSource {
-        fn id(&self) -> &'static str {
+        fn id(&self) -> &str {
             self.id
         }
-        fn name(&self) -> &'static str {
+        fn name(&self) -> &str {
             "Mock"
         }
         async fn fetch(&self, _creds: &Credentials) -> Result<ServiceStatus, SourceError> {
@@ -295,7 +365,7 @@ mod tests {
     fn state_with(sources: Vec<Arc<dyn QuotaSource>>) -> Arc<AppState> {
         Arc::new(AppState {
             credentials: Credentials::new(),
-            sources,
+            sources: RwLock::new(sources),
             last_snapshot: RwLock::new(None),
             settings: RwLock::new(Settings::default()),
             notified: RwLock::new(HashMap::new()),

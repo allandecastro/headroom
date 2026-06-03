@@ -32,25 +32,104 @@ pub fn set_claude_session(
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn set_copilot_token(
-    state: tauri::State<'_, Arc<AppState>>,
-    token: String,
+/// Resolve a token's GitHub identity, register it as a Copilot account, rebuild
+/// the source list, and push a fresh snapshot. Shared by the paste path and the
+/// device-flow path so both behave identically and support multiple accounts.
+async fn connect_copilot_account(
+    app: &AppHandle,
+    state: &Arc<AppState>,
+    token: &str,
 ) -> Result<(), String> {
+    let identity = crate::github_signin::resolve_identity(token)
+        .await
+        .map_err(|e| format!("couldn't read your GitHub account: {e}"))?;
+    let account = credentials::CopilotAccount {
+        id: identity.id,
+        login: identity.login.clone(),
+        label: identity.login,
+    };
     state
         .credentials
-        .set("copilot.token", &token)
-        .map_err(|e| e.to_string())
+        .add_copilot_account(account, token)
+        .map_err(|e| e.to_string())?;
+    crate::orchestrator::rebuild_sources(state).await;
+    let snapshot = poll_once(state.clone()).await;
+    let _ = app.emit("tokens-updated", &snapshot);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn clear_credentials(
+pub async fn set_copilot_token(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    token: String,
+) -> Result<(), String> {
+    connect_copilot_account(&app, state.inner(), &token).await
+}
+
+#[tauri::command]
+pub async fn list_copilot_accounts(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Vec<credentials::CopilotAccount>, String> {
+    Ok(state.credentials.copilot_accounts())
+}
+
+#[tauri::command]
+pub async fn remove_copilot_account(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<(), String> {
+    state
+        .credentials
+        .remove_copilot_account(&id)
+        .map_err(|e| e.to_string())?;
+    crate::orchestrator::rebuild_sources(state.inner()).await;
+    let snapshot = poll_once(state.inner().clone()).await;
+    let _ = app.emit("tokens-updated", &snapshot);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_copilot_account_label(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+    label: String,
+) -> Result<(), String> {
+    state
+        .credentials
+        .set_copilot_label(&id, &label)
+        .map_err(|e| e.to_string())?;
+    // The label feeds each source's name(), so rebuild then re-emit so the card
+    // header updates live.
+    crate::orchestrator::rebuild_sources(state.inner()).await;
+    let snapshot = poll_once(state.inner().clone()).await;
+    let _ = app.emit("tokens-updated", &snapshot);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn clear_credentials(
     app: AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     service: String,
 ) -> Result<(), String> {
+    // Capture the dynamic per-account Copilot token keys before the static
+    // `copilot.accounts` registry key is deleted below (else we'd lose the list).
+    let account_keys = if service == "copilot" {
+        state.credentials.copilot_account_token_keys()
+    } else {
+        Vec::new()
+    };
     for key in credentials::service_keys(&service)? {
         state.credentials.delete(key).map_err(|e| e.to_string())?;
+    }
+    for key in &account_keys {
+        state.credentials.delete(key).map_err(|e| e.to_string())?;
+    }
+    if service == "copilot" {
+        crate::orchestrator::rebuild_sources(state.inner()).await;
     }
     // Claude's session is a webview cookie, not just a keychain entry. Clear the
     // webview's data so the next sign-in starts from a clean session instead of
@@ -224,14 +303,14 @@ pub async fn start_copilot_signin(
     tauri::async_runtime::spawn(async move {
         match signin.poll_for_token(GITHUB_CLIENT_ID, &device).await {
             Ok(token) => {
-                if let Err(e) = state.credentials.set("copilot.token", &token) {
-                    error!(?e, "failed to store copilot token");
-                    let _ = app_handle.emit("copilot-signin-error", "failed to store token");
+                // Resolve identity, register the account, rebuild sources, and
+                // emit a fresh snapshot — same path as the paste flow.
+                if let Err(e) = connect_copilot_account(&app_handle, &state, &token).await {
+                    error!(?e, "failed to connect copilot account");
+                    let _ = app_handle.emit("copilot-signin-error", e);
                     return;
                 }
                 let _ = app_handle.emit("copilot-signed-in", ());
-                let snapshot = poll_once(state.clone()).await;
-                let _ = app_handle.emit("tokens-updated", &snapshot);
             }
             Err(e) => {
                 warn!(?e, "copilot device-flow sign-in failed");
@@ -370,9 +449,14 @@ pub async fn install_update(
 /// payload is the only ground truth — see `sources::copilot`.
 #[tauri::command]
 pub async fn copilot_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+    // Use the first connected account's token (falling back to a not-yet-migrated
+    // legacy token) — diagnostics just needs any valid token to capture a payload.
     let token = state
         .credentials
-        .copilot_token()
+        .copilot_accounts()
+        .first()
+        .and_then(|a| state.credentials.copilot_token_for(&a.id))
+        .or_else(|| state.credentials.copilot_token())
         .ok_or("No Copilot token stored — sign in to GitHub first.")?;
     crate::sources::copilot::CopilotSource::default()
         .fetch_raw(&token)

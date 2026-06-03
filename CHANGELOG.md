@@ -6,7 +6,21 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Multiple GitHub Copilot accounts.** Connect several GitHub accounts (e.g. a
+  personal seat and a work seat, or seats in different orgs) and Headroom shows
+  one card per account, each with its own quota and history. Manage them under
+  Settings → _GitHub Copilot accounts_: add, remove, and rename each account.
+  Because Copilot's per-user endpoint exposes no org, each card is labelled with
+  its GitHub login by default and is renameable (e.g. to the org name). An
+  existing single sign-in migrates automatically on first launch.
+
+### Changed
+
+- **The popover hides services you haven't connected.** Only signed-in services
+  appear; when nothing is connected, a small "No accounts connected" prompt links
+  to setup. Settings still lists everything to connect or disconnect.
 
 ## [1.4.0] — 2026-06-03
 
