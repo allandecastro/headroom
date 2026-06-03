@@ -1,0 +1,59 @@
+name: Screenshots
+
+# Regenerate the README popover screenshots on every PR and commit any changes
+# back to the PR branch, so the docs stay in sync with the UI automatically.
+#
+# Termination: the capture is deterministic (frozen clock + fixed timezone /
+# locale), so a re-run on the auto-commit regenerates byte-identical PNGs, finds
+# no diff, and stops — no `[skip ci]` needed, which also keeps the required
+# status checks running on the new head commit so the PR stays mergeable.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: screenshots-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    name: Regenerate screenshots
+    # Fork PRs get a read-only GITHUB_TOKEN, so the push-back would fail — skip
+    # them. Same-repo branches (the maintainer flow) push fine.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Regenerate
+        run: npm run screenshots
+
+      - name: Commit changes
+        run: |
+          if [[ -n "$(git status --porcelain docs/screenshots)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/screenshots
+            git commit -m "chore(screenshots): regenerate from UI"
+            git push origin HEAD:${{ github.head_ref }}
+            echo "Screenshots updated."
+          else
+            echo "Screenshots already up to date."
+          fi
