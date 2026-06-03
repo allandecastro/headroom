@@ -34,7 +34,10 @@ pub struct Snapshot {
 /// Shared app state, touched by both the polling task and the IPC handlers.
 pub struct AppState {
     pub credentials: Credentials,
-    pub sources: Vec<Arc<dyn QuotaSource>>,
+    /// The live source list: Claude plus one Copilot source per connected
+    /// account. Rebuilt by the orchestrator when accounts change, so it's behind
+    /// a lock rather than fixed at startup.
+    pub sources: RwLock<Vec<Arc<dyn QuotaSource>>>,
     pub last_snapshot: RwLock<Option<Snapshot>>,
     pub settings: RwLock<Settings>,
     /// Highest threshold (0/warn/crit) already fired per "service:quota", so we
@@ -59,12 +62,13 @@ pub fn run() {
         )
         .init();
 
+    let credentials = Credentials::new();
+    // Initial source list from whatever's already connected; the poll loop
+    // migrates any legacy token and rebuilds before the first fetch.
+    let sources = orchestrator::build_sources(&credentials);
     let state = Arc::new(AppState {
-        credentials: Credentials::new(),
-        sources: vec![
-            Arc::new(sources::claude::ClaudeSource::default()),
-            Arc::new(sources::copilot::CopilotSource::default()),
-        ],
+        credentials,
+        sources: RwLock::new(sources),
         last_snapshot: RwLock::new(None),
         settings: RwLock::new(Settings::load()),
         notified: RwLock::new(std::collections::HashMap::new()),
@@ -118,6 +122,9 @@ pub fn run() {
             commands::set_autostart,
             commands::start_claude_signin,
             commands::start_copilot_signin,
+            commands::list_copilot_accounts,
+            commands::remove_copilot_account,
+            commands::set_copilot_account_label,
             commands::get_update,
             commands::check_for_update_now,
             commands::install_update,

@@ -180,7 +180,9 @@ pub enum SourceError {
 
 #[async_trait]
 pub trait QuotaSource: Send + Sync + 'static {
-    fn id(&self) -> &'static str;
-    fn name(&self) -> &'static str;
+    /// Stable service id (e.g. `"claude"`, `"copilot:12345"`). Borrowed from the
+    /// source so per-account Copilot instances can carry their own id.
+    fn id(&self) -> &str;
+    fn name(&self) -> &str;
     async fn fetch(&self, creds: &Credentials) -> Result<ServiceStatus, SourceError>;
 }

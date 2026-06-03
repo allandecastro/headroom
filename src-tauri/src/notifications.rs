@@ -70,12 +70,17 @@ fn plan_alerts(
                 } else {
                     ("🟠", "Heads up")
                 };
+                // A per-account Copilot source is named just by its account
+                // label, so prefix the service so a multi-account toast says
+                // which account it's about (e.g. "GitHub Copilot · alice").
+                let who = if service.id.starts_with("copilot:") {
+                    format!("GitHub Copilot · {}", service.name)
+                } else {
+                    service.name.clone()
+                };
                 alerts.push(Alert {
                     title: "Headroom".to_string(),
-                    body: format!(
-                        "{marker} {level}: {} · {} at {:.0}%",
-                        service.name, quota.label, pct
-                    ),
+                    body: format!("{marker} {level}: {who} · {} at {:.0}%", quota.label, pct),
                 });
                 notified.insert(key, crossed);
             }
@@ -261,6 +266,26 @@ mod tests {
             &mut notified,
         );
         assert_eq!(again.len(), 1);
+    }
+
+    #[test]
+    fn copilot_account_alert_names_the_account() {
+        let svc = ServiceStatus {
+            id: "copilot:12345".to_string(),
+            name: "alice".to_string(),
+            plan: "Business".to_string(),
+            state: ServiceState::Active,
+            quotas: vec![quota(85.0, 100.0)],
+            error_detail: None,
+            copilot_usage: None,
+        };
+        let alerts = plan_alerts(&snapshot(vec![svc]), &settings(80, 95), &mut HashMap::new());
+        assert_eq!(alerts.len(), 1);
+        assert!(
+            alerts[0].body.contains("GitHub Copilot · alice"),
+            "toast should name the Copilot account: {}",
+            alerts[0].body
+        );
     }
 
     #[test]

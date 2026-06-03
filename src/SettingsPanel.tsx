@@ -1,7 +1,7 @@
 // Settings window.
 
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
@@ -24,8 +24,11 @@ import {
   installUpdate,
   copilotDiagnostics,
   claudeDiagnostics,
+  listCopilotAccounts,
+  removeCopilotAccount,
+  setCopilotAccountLabel,
 } from './lib/ipc';
-import type { Settings, UpdateProgress } from './lib/ipc';
+import type { Settings, UpdateProgress, CopilotAccount } from './lib/ipc';
 import type { Snapshot, ServiceStatus, UpdateInfo } from './lib/api';
 
 // ─── Poll interval options ───────────────────────────────────────────────────
@@ -160,6 +163,122 @@ function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: Service
           }}
         >
           Sign out
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Copilot accounts (multi-account) ────────────────────────────────────────
+
+function CopilotAccountRow({
+  account,
+  svc,
+  onChange,
+}: {
+  account: CopilotAccount;
+  svc: ServiceStatus | undefined;
+  onChange: () => void;
+}) {
+  const [label, setLabel] = useState(account.label);
+  const state = svc?.state;
+
+  const statusEl =
+    state === 'active' ? (
+      <ConnectedPill />
+    ) : state === 'unreachable' ? (
+      <ProblemPill label="couldn't fetch usage" />
+    ) : state === 'auth_required' ? (
+      <ProblemPill label="sign in again" />
+    ) : (
+      <span>Connecting…</span>
+    );
+
+  // Commit a rename on blur / Enter; empty falls back to the GitHub login.
+  function commitLabel() {
+    const next = label.trim() || account.login;
+    if (next !== label) setLabel(next);
+    if (next !== account.label) {
+      setCopilotAccountLabel(account.id, next).then(onChange).catch(console.error);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 py-2">
+      <span className="text-fg-secondary">
+        <GitHubIcon />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onBlur={commitLabel}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          aria-label="Account label"
+          className="w-full bg-transparent text-[12px] text-fg-primary outline-none focus:underline"
+        />
+        <span className="flex items-center gap-1 text-[10px] text-fg-tertiary">
+          @{account.login}
+          {svc?.plan ? ` · ${svc.plan}` : ''} · {statusEl}
+        </span>
+      </div>
+      <Button
+        className="text-xxs px-[9px] py-[3px]"
+        onClick={() => removeCopilotAccount(account.id).then(onChange).catch(console.error)}
+      >
+        Remove
+      </Button>
+    </div>
+  );
+}
+
+function CopilotAccounts({
+  snapshot,
+  onChange,
+}: {
+  snapshot: Snapshot | null;
+  onChange: () => void;
+}) {
+  const [accounts, setAccounts] = useState<CopilotAccount[]>([]);
+
+  const load = useCallback(() => {
+    listCopilotAccounts().then(setAccounts).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    load();
+    // Refresh the list when an account is added (onboarding) or any change
+    // re-emits the snapshot.
+    const unAdded = listen('copilot-signed-in', load);
+    const unTokens = listen('tokens-updated', load);
+    return () => {
+      unAdded.then((fn) => fn()).catch(console.error);
+      unTokens.then((fn) => fn()).catch(console.error);
+    };
+  }, [load]);
+
+  return (
+    <div>
+      {accounts.length === 0 && (
+        <div className="py-2 text-[11px] text-fg-quaternary">No GitHub accounts connected.</div>
+      )}
+      {accounts.map((a) => (
+        <CopilotAccountRow
+          key={a.id}
+          account={a}
+          svc={snapshot?.services.find((s) => s.id === `copilot:${a.id}`)}
+          onChange={() => {
+            load();
+            onChange();
+          }}
+        />
+      ))}
+      <div className="pt-1.5">
+        <Button
+          className="text-xxs px-[9px] py-[3px]"
+          onClick={() => openOnboarding().catch(console.error)}
+        >
+          + Add GitHub account
         </Button>
       </div>
     </div>
@@ -331,7 +450,6 @@ export default function SettingsPanel() {
   const pollValue = String(settings.poll_interval_secs) as PollValue;
 
   const claudeSvc = snapshot?.services.find((s) => s.id === 'claude');
-  const copilotSvc = snapshot?.services.find((s) => s.id === 'copilot');
 
   return (
     <div className="h-screen overflow-y-auto bg-window-opaque text-fg-primary">
@@ -393,23 +511,18 @@ export default function SettingsPanel() {
         </Group>
 
         {/* SERVICES */}
-        <Group label="Services">
-          <div>
-            <ServiceRow
-              icon={<ClaudeIcon />}
-              svc={claudeSvc}
-              staticName="Claude"
-              credentialKey="claude"
-              onSignOut={refreshSnapshot}
-            />
-            <ServiceRow
-              icon={<GitHubIcon />}
-              svc={copilotSvc}
-              staticName="GitHub Copilot"
-              credentialKey="copilot"
-              onSignOut={refreshSnapshot}
-            />
-          </div>
+        <Group label="Claude">
+          <ServiceRow
+            icon={<ClaudeIcon />}
+            svc={claudeSvc}
+            staticName="Claude"
+            credentialKey="claude"
+            onSignOut={refreshSnapshot}
+          />
+        </Group>
+
+        <Group label="GitHub Copilot accounts">
+          <CopilotAccounts snapshot={snapshot} onChange={refreshSnapshot} />
         </Group>
 
         {/* NOTIFICATIONS */}

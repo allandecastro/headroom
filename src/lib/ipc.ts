@@ -37,6 +37,30 @@ export function clearCredentials(service: CredentialService): Promise<void> {
   return invoke('clear_credentials', { service });
 }
 
+// ─── Copilot accounts (multi-account) ────────────────────────────────────────
+
+/** A connected GitHub Copilot account. `label` defaults to the login but is renameable. */
+export interface CopilotAccount {
+  id: string;
+  login: string;
+  label: string;
+}
+
+/** List the connected Copilot accounts. */
+export function listCopilotAccounts(): Promise<CopilotAccount[]> {
+  return invoke('list_copilot_accounts');
+}
+
+/** Disconnect one Copilot account (deletes its token + registry entry). */
+export function removeCopilotAccount(id: string): Promise<void> {
+  return invoke('remove_copilot_account', { id });
+}
+
+/** Rename a Copilot account's display label (e.g. to its org name). */
+export function setCopilotAccountLabel(id: string, label: string): Promise<void> {
+  return invoke('set_copilot_account_label', { id, label });
+}
+
 // ─── Settings IPC ────────────────────────────────────────────────────────────
 
 export interface Settings {
@@ -122,8 +146,8 @@ export function installUpdate(): Promise<InstallOutcome> {
  * Fetch the raw `copilot_internal/user` payload (token redacted) for diagnostics
  * — used to capture the real (undocumented, post-migration) shape for reporting.
  */
-export function copilotDiagnostics(): Promise<string> {
-  return invoke('copilot_diagnostics');
+export function copilotDiagnostics(accountId?: string): Promise<string> {
+  return invoke('copilot_diagnostics', { accountId });
 }
 
 /**

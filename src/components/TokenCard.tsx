@@ -15,7 +15,8 @@ interface Props {
 
 function serviceIcon(id: string): ReactNode {
   if (id === 'claude') return <ClaudeIcon />;
-  if (id === 'copilot') return <GitHubIcon />;
+  // Copilot ids are "copilot" (legacy) or "copilot:<account-id>" (multi-account).
+  if (id === 'copilot' || id.startsWith('copilot:')) return <GitHubIcon />;
   return null;
 }
 
@@ -72,7 +73,12 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
         // Active but no numeric quota row — never render a blank card. Copilot
         // carries a regime-tagged reason (unlimited / unparsed); others fall
         // back to a neutral line.
-        <EmptyUsage usage={service.copilot_usage} />
+        <EmptyUsage
+          usage={service.copilot_usage}
+          accountId={
+            service.id.startsWith('copilot:') ? service.id.slice('copilot:'.length) : undefined
+          }
+        />
       )}
     </section>
   );
@@ -81,13 +87,13 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
 // Shown when a service is active but has no metered quota row to draw — an
 // unlimited plan, or a payload shape Headroom couldn't classify (e.g. the new
 // AI-Credits object under an id we don't recognize yet). Never a silent blank.
-function EmptyUsage({ usage }: { usage?: CopilotUsage }) {
+function EmptyUsage({ usage, accountId }: { usage?: CopilotUsage; accountId?: string }) {
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
 
   async function copyDiagnostics() {
     setCopyState('copying');
     try {
-      await navigator.clipboard.writeText(await copilotDiagnostics());
+      await navigator.clipboard.writeText(await copilotDiagnostics(accountId));
       setCopyState('done');
     } catch (e) {
       console.error(e);
