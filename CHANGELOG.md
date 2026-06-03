@@ -8,6 +8,17 @@ All notable changes to Headroom are recorded here. The format follows
 
 _Nothing yet._
 
+## [1.5.1] — 2026-06-03
+
+### Fixed
+
+- **Per-account Copilot diagnostics.** With several Copilot accounts connected,
+  "Copy diagnostics" in Settings always grabbed the *first* account's payload.
+  Each account row now has its own **Diagnostics** action, so you can copy the
+  right account's raw payload (token redacted) when reporting a problem. ([#50])
+
+[#50]: https://github.com/allandecastro/headroom/pull/50
+
 ## [1.5.0] — 2026-06-03
 
 ### Added
