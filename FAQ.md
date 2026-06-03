@@ -35,6 +35,16 @@ Easiest is **"Sign in with GitHub"** in onboarding: Headroom shows a short code,
 
 You don't need to — Headroom reads your plan, quota cap, and reset date straight from your account, so it stays correct even if you change tiers. To see it yourself, visit [github.com/settings/copilot](https://github.com/settings/copilot).
 
+### My Copilot card says "Pooled — no individual quota". Why no number?
+
+Some Copilot **Business / Enterprise** seats draw from **org-pooled AI Credits** rather than a per-user allowance. When your org pools credits, GitHub doesn't expose a per-user balance, so there's nothing personal to meter — Headroom shows _"Pooled — no individual quota"_ instead of a fake number. If your org instead assigns you a personal AI-Credits budget, the card shows the usual bar with `used / total` and a reset date. Both Business states look like this:
+
+<p align="center">
+  <img src="docs/screenshots/copilot-business-quota.png" alt="GitHub Copilot Business with a per-user AI-Credits quota" width="340" />
+  &nbsp;
+  <img src="docs/screenshots/copilot-business-pooled.png" alt="GitHub Copilot Business with org-pooled credits and no per-user quota" width="340" />
+</p>
+
 ### Where do I find my Claude session key?
 
 Easiest path: click **Sign in with Claude** in onboarding — the embedded webview signs you in and captures the cookie automatically. If that doesn't work (some Linux distros lack the right webkit, some identity providers behave oddly inside webviews), use the paste path: in your browser, sign in to `claude.ai`, open DevTools → Application → Cookies → `claude.ai` → copy the value of `sessionKey`.

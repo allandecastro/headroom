@@ -59,6 +59,14 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 <p align="center"><sub>Onboarding &nbsp;·&nbsp; Settings</sub></p>
 
+<p align="center">
+  <img src="docs/screenshots/copilot-business-quota.png" alt="GitHub Copilot Business showing a per-user AI-Credits quota" width="360" />
+  &nbsp;
+  <img src="docs/screenshots/copilot-business-pooled.png" alt="GitHub Copilot Business with org-pooled credits and no per-user quota" width="360" />
+</p>
+
+<p align="center"><sub>GitHub Copilot Business — a per-user AI-Credits quota when one is assigned &nbsp;·&nbsp; org-pooled credits, where there's no per-user usage to show.</sub></p>
+
 ---
 
 ## Features
