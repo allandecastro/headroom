@@ -448,16 +448,23 @@ pub async fn install_update(
 /// endpoint is undocumented and changed with the AI-Credits migration, so a live
 /// payload is the only ground truth — see `sources::copilot`.
 #[tauri::command]
-pub async fn copilot_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
-    // Use the first connected account's token (falling back to a not-yet-migrated
-    // legacy token) — diagnostics just needs any valid token to capture a payload.
-    let token = state
-        .credentials
-        .copilot_accounts()
-        .first()
-        .and_then(|a| state.credentials.copilot_token_for(&a.id))
-        .or_else(|| state.credentials.copilot_token())
-        .ok_or("No Copilot token stored — sign in to GitHub first.")?;
+pub async fn copilot_diagnostics(
+    state: tauri::State<'_, Arc<AppState>>,
+    account_id: Option<String>,
+) -> Result<String, String> {
+    // A specific account when given (the per-card "Copy diagnostics" button);
+    // otherwise the first connected account, falling back to a not-yet-migrated
+    // legacy token — diagnostics just needs a valid token to capture a payload.
+    let token = match account_id {
+        Some(id) => state.credentials.copilot_token_for(&id),
+        None => state
+            .credentials
+            .copilot_accounts()
+            .first()
+            .and_then(|a| state.credentials.copilot_token_for(&a.id))
+            .or_else(|| state.credentials.copilot_token()),
+    }
+    .ok_or("No Copilot token stored — sign in to GitHub first.")?;
     crate::sources::copilot::CopilotSource::default()
         .fetch_raw(&token)
         .await

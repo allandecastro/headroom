@@ -146,8 +146,8 @@ export function installUpdate(): Promise<InstallOutcome> {
  * Fetch the raw `copilot_internal/user` payload (token redacted) for diagnostics
  * — used to capture the real (undocumented, post-migration) shape for reporting.
  */
-export function copilotDiagnostics(): Promise<string> {
-  return invoke('copilot_diagnostics');
+export function copilotDiagnostics(accountId?: string): Promise<string> {
+  return invoke('copilot_diagnostics', { accountId });
 }
 
 /**
