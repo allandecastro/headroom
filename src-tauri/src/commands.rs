@@ -364,6 +364,9 @@ pub enum InstallOutcome {
     },
     /// macOS only: `brew upgrade --cask headroom` was launched in Terminal.
     /// Homebrew quits and replaces the app itself, so there's nothing more to do.
+    /// Gated to macOS — it's only ever constructed by `macos_brew_upgrade`, so on
+    /// other platforms it would trip `-D warnings` as never-constructed.
+    #[cfg(target_os = "macos")]
     Brew,
 }
 
