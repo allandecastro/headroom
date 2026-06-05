@@ -9,6 +9,7 @@
 use async_trait::async_trait;
 use reqwest::{header, Client};
 use serde::Deserialize;
+use tracing::warn;
 
 use super::{Quota, QuotaSource, QuotaUnit, QuotaWindow, ServiceState, ServiceStatus, SourceError};
 use crate::credentials::Credentials;
@@ -182,9 +183,21 @@ impl QuotaSource for ClaudeSource {
             .claude_session()
             .ok_or(SourceError::MissingCredentials("claude.session"))?;
 
-        let org_id = creds.claude_org_id();
+        // The org UUID is stable for the account, so resolve it once and cache it
+        // in the keychain — every subsequent poll then skips the lookup round-trip.
+        // Cleared on sign-out via `service_keys("claude")`.
+        let org_id = match creds.claude_org_id() {
+            Some(id) => id,
+            None => {
+                let id = self.fetch_org_id(&session_key).await?;
+                if let Err(e) = creds.set("claude.orgId", &id) {
+                    warn!(?e, "failed to cache claude org id");
+                }
+                id
+            }
+        };
 
-        self.fetch_with(&session_key, org_id.as_deref()).await
+        self.fetch_with(&session_key, Some(&org_id)).await
     }
 }
 

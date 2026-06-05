@@ -91,7 +91,8 @@ export function openOnboarding(): Promise<void> {
 
 /**
  * Open the embedded Claude login window. After the user signs in, the backend
- * captures the `sessionKey` cookie, stores it, and emits `claude-signed-in`.
+ * captures the `sessionKey` cookie, stores it, and emits `claude-signed-in` (or
+ * `claude-signin-error` with a message if sign-in times out).
  */
 export function startClaudeSignin(): Promise<void> {
   return invoke('start_claude_signin');

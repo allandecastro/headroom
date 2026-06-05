@@ -12,8 +12,16 @@ use crate::settings::Settings;
 use crate::{credentials, AppState, Snapshot};
 
 #[tauri::command]
-pub async fn refresh_all(state: tauri::State<'_, Arc<AppState>>) -> Result<Snapshot, String> {
-    Ok(poll_once(state.inner().clone()).await)
+pub async fn refresh_all(
+    app: AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Snapshot, String> {
+    // Run a complete cycle (tray + notifications, not just the popover) and pulse
+    // the poll loop so its next automatic tick is a full interval from now rather
+    // than landing moments later on the old schedule.
+    let snapshot = crate::orchestrator::run_poll_cycle(&app, state.inner()).await;
+    state.refresh_notify.notify_one();
+    Ok(snapshot)
 }
 
 #[tauri::command]
@@ -201,7 +209,9 @@ pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
 
 /// Open an embedded Claude login window. The webview is a real browser engine,
 /// so it clears the Cloudflare challenge our HTTP client cannot. After sign-in,
-/// poll the cookie store for `sessionKey`, store it, and emit a fresh snapshot.
+/// poll the cookie store for `sessionKey`, store it, emit `claude-signed-in`, and
+/// push a fresh snapshot. If the user never completes sign-in within the budget,
+/// emit `claude-signin-error` so the UI doesn't hang on "Signing in…".
 #[tauri::command]
 pub async fn start_claude_signin(
     app: AppHandle,
@@ -235,10 +245,14 @@ pub async fn start_claude_signin(
     let state = state.inner().clone();
     let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
-        for _ in 0..200 {
+        // ~5 minutes (200 × 1.5s) to complete sign-in. Closing the window means
+        // the user cancelled (silent); exhausting the budget with it still open is
+        // a real failure we surface so the UI doesn't hang on "Signing in…".
+        const MAX_ATTEMPTS: usize = 200;
+        for _ in 0..MAX_ATTEMPTS {
             tokio::time::sleep(Duration::from_millis(1500)).await;
             let Some(window) = app_handle.get_webview_window("claude-login") else {
-                break; // user closed the login window
+                return; // user closed the login window — cancelled, not an error
             };
             let cookies = match window.cookies() {
                 Ok(c) => c,
@@ -258,9 +272,19 @@ pub async fn start_claude_signin(
                 let _ = window.close();
                 let snapshot = poll_once(state.clone()).await;
                 let _ = app_handle.emit("tokens-updated", &snapshot);
-                break;
+                return;
             }
         }
+        // Budget exhausted with the window still open: close the stale window and
+        // tell the renderer so it can drop "Signing in…" and offer a retry.
+        warn!("claude sign-in timed out waiting for sessionKey");
+        if let Some(window) = app_handle.get_webview_window("claude-login") {
+            let _ = window.close();
+        }
+        let _ = app_handle.emit(
+            "claude-signin-error",
+            "Timed out waiting for sign-in. Please try again.",
+        );
     });
 
     Ok(())
