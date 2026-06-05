@@ -51,6 +51,9 @@ pub struct AppState {
     pub update: RwLock<Option<updates::UpdateInfo>>,
     /// Unix seconds of the last update check, to throttle GitHub API hits.
     pub last_update_check: RwLock<i64>,
+    /// Pulsed by a manual "Refresh now" so the polling loop resets its interval
+    /// from that moment instead of continuing on its old schedule.
+    pub refresh_notify: tokio::sync::Notify,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -76,6 +79,7 @@ pub fn run() {
         update_checker: updates::UpdateChecker::default(),
         update: RwLock::new(None),
         last_update_check: RwLock::new(0),
+        refresh_notify: tokio::sync::Notify::new(),
     });
 
     tauri::Builder::default()

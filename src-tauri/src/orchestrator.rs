@@ -193,8 +193,32 @@ fn classify(id: &str, name: &str, result: Result<ServiceStatus, SourceError>) ->
     }
 }
 
+/// One full polling cycle: fetch every source, broadcast the snapshot, then drive
+/// the tray, threshold notifications, and update check off the result. Shared by
+/// the background loop and the manual `refresh_all` command so a manual refresh is
+/// a complete cycle (tray + notifications), not just a popover update.
+pub(crate) async fn run_poll_cycle(handle: &AppHandle, state: &Arc<AppState>) -> Snapshot {
+    let snapshot = poll_once(state.clone()).await;
+    if let Err(e) = handle.emit("tokens-updated", &snapshot) {
+        error!(?e, "failed to emit tokens-updated");
+    }
+    let settings = state.settings.read().await.clone();
+    tray::update_state(
+        handle,
+        &snapshot,
+        settings.show_tray_percentage,
+        settings.notify_warn_pct,
+        settings.notify_crit_pct,
+    );
+    notify_thresholds(handle, state, &snapshot, &settings).await;
+    maybe_check_update(handle, state, &settings).await;
+    snapshot
+}
+
 /// Spawn the polling loop: each tick re-reads settings, so changes to the poll
-/// interval take effect on the next cycle without a restart.
+/// interval take effect on the next cycle without a restart. A manual refresh
+/// pulses `refresh_notify`, which resets the interval from that moment (the
+/// refresh itself already ran a full cycle, so we just restart the timer).
 pub(crate) fn spawn_poll_loop(handle: AppHandle, state: Arc<AppState>) {
     tauri::async_runtime::spawn(async move {
         info!("starting polling loop");
@@ -202,22 +226,18 @@ pub(crate) fn spawn_poll_loop(handle: AppHandle, state: Arc<AppState>) {
         // source list from connected accounts before the first poll.
         migrate_legacy_copilot(&state.credentials).await;
         rebuild_sources(&state).await;
+        run_poll_cycle(&handle, &state).await;
         loop {
-            let snapshot = poll_once(state.clone()).await;
-            if let Err(e) = handle.emit("tokens-updated", &snapshot) {
-                error!(?e, "failed to emit tokens-updated");
+            let interval = Duration::from_secs(state.settings.read().await.poll_interval_secs);
+            tokio::select! {
+                _ = tokio::time::sleep(interval) => {
+                    run_poll_cycle(&handle, &state).await;
+                }
+                _ = state.refresh_notify.notified() => {
+                    // A manual refresh already ran a full cycle; loop to restart
+                    // the interval rather than polling again immediately.
+                }
             }
-            let settings = state.settings.read().await.clone();
-            tray::update_state(
-                &handle,
-                &snapshot,
-                settings.show_tray_percentage,
-                settings.notify_warn_pct,
-                settings.notify_crit_pct,
-            );
-            notify_thresholds(&handle, &state, &snapshot, &settings).await;
-            maybe_check_update(&handle, &state, &settings).await;
-            tokio::time::sleep(Duration::from_secs(settings.poll_interval_secs)).await;
         }
     });
 }
@@ -373,6 +393,7 @@ mod tests {
             update_checker: crate::updates::UpdateChecker::default(),
             update: RwLock::new(None),
             last_update_check: RwLock::new(0),
+            refresh_notify: tokio::sync::Notify::new(),
         })
     }
 
