@@ -359,7 +359,9 @@ pub async fn check_for_update_now(
 #[derive(serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum InstallOutcome {
-    OpenUrl { url: String },
+    OpenUrl {
+        url: String,
+    },
     /// macOS only: `brew upgrade --cask headroom` was launched in Terminal.
     /// Homebrew quits and replaces the app itself, so there's nothing more to do.
     Brew,
