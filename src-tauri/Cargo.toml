@@ -63,6 +63,8 @@ custom-protocol = ["tauri/custom-protocol"]
 [dev-dependencies]
 # HTTP mocking for source adapter unit tests (see TODO.md § "Tests")
 wiremock = "0.6"
+# Temp dirs for the Codex log-reader tests (a throwaway $CODEX_HOME).
+tempfile = "3"
 
 [profile.release]
 panic = "abort"

@@ -9,19 +9,25 @@ use tracing::{error, info, warn};
 
 use crate::credentials::{CopilotAccount, Credentials};
 use crate::notifications::notify_thresholds;
+use crate::settings::Settings;
 use crate::sources::claude::ClaudeSource;
+use crate::sources::codex::CodexSource;
 use crate::sources::copilot::CopilotSource;
 use crate::sources::{QuotaSource, QuotaWindow, ServiceState, ServiceStatus, SourceError};
 use crate::tray;
 use crate::{AppState, Snapshot};
 
-/// Compose the live source list from connected credentials: Claude (always) plus
-/// one Copilot source per connected account. A not-yet-migrated legacy
-/// `copilot.token` yields a single legacy Copilot source so its card survives
-/// until migration. When no Copilot account is connected, no Copilot source is
-/// added — with the "hide unconnected" popover that simply shows no card.
-pub(crate) fn build_sources(creds: &Credentials) -> Vec<Arc<dyn QuotaSource>> {
-    let mut sources: Vec<Arc<dyn QuotaSource>> = vec![Arc::new(ClaudeSource::default())];
+/// Compose the live source list from connected credentials: Claude (always),
+/// Codex (always — it self-hides when `~/.codex` is absent), plus one Copilot
+/// source per connected account. A not-yet-migrated legacy `copilot.token` yields
+/// a single legacy Copilot source so its card survives until migration. When no
+/// Copilot account is connected, no Copilot source is added — with the "hide
+/// unconnected" popover that simply shows no card.
+pub(crate) fn build_sources(creds: &Credentials, settings: &Settings) -> Vec<Arc<dyn QuotaSource>> {
+    let mut sources: Vec<Arc<dyn QuotaSource>> = vec![
+        Arc::new(ClaudeSource::default()),
+        Arc::new(CodexSource::new(settings.codex_live_query)),
+    ];
     let accounts = creds.copilot_accounts();
     if accounts.is_empty() {
         if creds.copilot_token().is_some() {
@@ -35,9 +41,10 @@ pub(crate) fn build_sources(creds: &Credentials) -> Vec<Arc<dyn QuotaSource>> {
     sources
 }
 
-/// Rebuild the live source list after the connected accounts change.
+/// Rebuild the live source list after the connected accounts or settings change.
 pub(crate) async fn rebuild_sources(state: &AppState) {
-    let sources = build_sources(&state.credentials);
+    let settings = state.settings.read().await.clone();
+    let sources = build_sources(&state.credentials, &settings);
     *state.sources.write().await = sources;
 }
 
@@ -323,6 +330,7 @@ mod tests {
             quotas: vec![],
             error_detail: None,
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 

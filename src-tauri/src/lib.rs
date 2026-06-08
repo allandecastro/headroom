@@ -66,14 +66,15 @@ pub fn run() {
         .init();
 
     let credentials = Credentials::new();
+    let settings = Settings::load();
     // Initial source list from whatever's already connected; the poll loop
     // migrates any legacy token and rebuilds before the first fetch.
-    let sources = orchestrator::build_sources(&credentials);
+    let sources = orchestrator::build_sources(&credentials, &settings);
     let state = Arc::new(AppState {
         credentials,
         sources: RwLock::new(sources),
         last_snapshot: RwLock::new(None),
-        settings: RwLock::new(Settings::load()),
+        settings: RwLock::new(settings),
         notified: RwLock::new(std::collections::HashMap::new()),
         history: RwLock::new(history::History::load()),
         update_checker: updates::UpdateChecker::default(),
@@ -133,7 +134,8 @@ pub fn run() {
             commands::check_for_update_now,
             commands::install_update,
             commands::copilot_diagnostics,
-            commands::claude_diagnostics
+            commands::claude_diagnostics,
+            commands::codex_diagnostics
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

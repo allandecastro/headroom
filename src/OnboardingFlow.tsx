@@ -5,7 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ClaudePasteForm } from './components/onboarding/ClaudePasteForm';
 import { CopilotAuthCard } from './components/onboarding/CopilotAuthCard';
 import { ServiceAuthCard } from './components/onboarding/ServiceAuthCard';
-import { ClaudeIcon } from './components/onboarding/icons';
+import { ClaudeIcon, CodexIcon } from './components/onboarding/icons';
 import { Button } from './components/ui/Button';
 import { startClaudeSignin } from './lib/ipc';
 import { useFitWindowHeight } from './lib/useFitWindow';
@@ -90,6 +90,23 @@ export default function OnboardingFlow() {
         </ServiceAuthCard>
 
         <CopilotAuthCard />
+
+        <ServiceAuthCard icon={<CodexIcon />} name="Codex">
+          <div className="text-[12px] leading-normal text-fg-tertiary">
+            <p className="mb-2">
+              No sign-in needed. Headroom reads Codex usage from{' '}
+              <code className="rounded bg-black/[0.06] px-1 dark:bg-white/[0.08]">~/.codex</code> —
+              and, when you’re signed in to ChatGPT in Codex, queries Codex’s own usage endpoint
+              with the token already stored there. Nothing else leaves your computer.
+            </p>
+            <p className="text-[11px] text-fg-quaternary">
+              Run an interactive <code className="font-mono">codex</code> session to record your
+              5-hour and weekly limits. Set{' '}
+              <code className="rounded bg-black/[0.06] px-1 dark:bg-white/[0.08]">CODEX_HOME</code>{' '}
+              if your install lives elsewhere.
+            </p>
+          </div>
+        </ServiceAuthCard>
 
         <div className="flex justify-end pt-4">
           <Button variant="primary" onClick={finish}>

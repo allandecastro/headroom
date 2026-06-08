@@ -71,6 +71,7 @@ export interface Settings {
   notify_crit_pct: number; // red alert threshold (0 = off)
   show_claude_design: boolean;
   check_updates: boolean; // auto-check GitHub for newer releases
+  codex_live_query: boolean; // query Codex's /codex/usage endpoint vs. local logs only
   notified_update_version: string; // version last toasted about (carried, not shown)
 }
 
@@ -157,4 +158,13 @@ export function copilotDiagnostics(accountId?: string): Promise<string> {
  */
 export function claudeDiagnostics(): Promise<string> {
   return invoke('claude_diagnostics');
+}
+
+/**
+ * Dump Codex diagnostics: resolved home, CLI version, auth mode, the live
+ * `/codex/usage` payload (tokens redacted) when reachable, and the latest local
+ * `rate_limits` line. Used to report exec-mode null logs or shape changes.
+ */
+export function codexDiagnostics(): Promise<string> {
+  return invoke('codex_diagnostics');
 }

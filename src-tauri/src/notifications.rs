@@ -142,6 +142,7 @@ mod tests {
             quotas,
             error_detail: None,
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 
@@ -278,6 +279,7 @@ mod tests {
             quotas: vec![quota(85.0, 100.0)],
             error_detail: None,
             copilot_usage: None,
+            codex_meta: None,
         };
         let alerts = plan_alerts(&snapshot(vec![svc]), &settings(80, 95), &mut HashMap::new());
         assert_eq!(alerts.len(), 1);

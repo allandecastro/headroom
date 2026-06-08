@@ -4,6 +4,7 @@
 //! See SPEC.md § "Data sources" and § "Modules" for the contract.
 
 pub mod claude;
+pub mod codex;
 pub mod copilot;
 
 use async_trait::async_trait;
@@ -117,6 +118,12 @@ pub struct ServiceStatus {
     /// `None` for non-Copilot services.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copilot_usage: Option<copilot::CopilotUsage>,
+    /// Codex-only: which source the snapshot came from (live `/codex/usage` vs.
+    /// local rollout logs), its capture time, optional credits balance, and the
+    /// token-consumption stats — so the renderer can show "as of … · live/logs",
+    /// a credits line, and a tokens-used block. `None` for non-Codex services.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codex_meta: Option<codex::CodexMeta>,
 }
 
 impl ServiceStatus {
@@ -129,6 +136,7 @@ impl ServiceStatus {
             quotas: vec![],
             error_detail: Some(detail),
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 
@@ -141,6 +149,7 @@ impl ServiceStatus {
             quotas: vec![],
             error_detail: None,
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 
@@ -153,6 +162,7 @@ impl ServiceStatus {
             quotas: vec![],
             error_detail: Some("Authentication required".to_string()),
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 }

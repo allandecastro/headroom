@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Pace, ServiceStatus, Quota, CopilotUsage } from '../lib/api';
-import { copilotDiagnostics } from '../lib/ipc';
-import { ClaudeIcon, GitHubIcon } from './onboarding/icons';
+import type {
+  Pace,
+  ServiceStatus,
+  Quota,
+  CopilotUsage,
+  CodexMeta,
+  CodexTokenStats,
+} from '../lib/api';
+import { copilotDiagnostics, codexDiagnostics } from '../lib/ipc';
+import { ClaudeIcon, GitHubIcon, CodexIcon } from './onboarding/icons';
 
 interface Props {
   service: ServiceStatus;
@@ -15,6 +22,7 @@ interface Props {
 
 function serviceIcon(id: string): ReactNode {
   if (id === 'claude') return <ClaudeIcon />;
+  if (id === 'codex') return <CodexIcon />;
   // Copilot ids are "copilot" (legacy) or "copilot:<account-id>" (multi-account).
   if (id === 'copilot' || id.startsWith('copilot:')) return <GitHubIcon />;
   return null;
@@ -61,14 +69,23 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
   const visibleQuotas = service.quotas.filter(
     (q) => q.window !== 'claude_design' || showClaudeDesign,
   );
+  const isCodex = service.id === 'codex';
 
   return (
     <section className="py-2">
       {header}
       {visibleQuotas.length > 0 ? (
-        visibleQuotas.map((q) => (
-          <QuotaRow key={q.window} quota={q} warnPct={warnPct} critPct={critPct} />
-        ))
+        <>
+          {visibleQuotas.map((q) => (
+            <QuotaRow key={q.window} quota={q} warnPct={warnPct} critPct={critPct} />
+          ))}
+          {isCodex && service.codex_meta && <CodexExtras meta={service.codex_meta} />}
+        </>
+      ) : isCodex ? (
+        // Codex installed but no rate-limit numbers yet (e.g. only exec-mode
+        // sessions, or not signed into ChatGPT). Show the guidance + any token
+        // stats we did read, plus a diagnostics copy.
+        <CodexEmpty meta={service.codex_meta} />
       ) : (
         // Active but no numeric quota row — never render a blank card. Copilot
         // carries a regime-tagged reason (unlimited / unparsed); others fall
@@ -82,6 +99,107 @@ export function TokenCard({ service, showClaudeDesign = false, warnPct, critPct 
       )}
     </section>
   );
+}
+
+// The "as of / source" line, credits, and token-consumption stats shown under
+// Codex's % rows. Codex data only refreshes when you run Codex (logs) or when the
+// live endpoint is reachable, so surfacing freshness + source matters.
+function CodexExtras({ meta }: { meta: CodexMeta }) {
+  const sourceLabel = meta.source === 'live' ? 'live' : 'local logs';
+  return (
+    <div className="mt-1 space-y-0.5">
+      <div className="text-2xs text-fg-quaternary">
+        {meta.captured_at ? `Updated ${formatAgo(meta.captured_at)}` : 'Updated'} · {sourceLabel}
+        {meta.stale && ' · may be stale'}
+        {meta.token_expired && ' · sign-in expired'}
+      </div>
+      {meta.credits_balance && (
+        <div className="text-2xs text-fg-tertiary tabular-nums">
+          Credits: {meta.credits_balance}
+        </div>
+      )}
+      {meta.token_stats && <CodexTokenStatsRow stats={meta.token_stats} />}
+    </div>
+  );
+}
+
+function CodexTokenStatsRow({ stats }: { stats: CodexTokenStats }) {
+  return (
+    <div
+      className="text-2xs text-fg-quaternary tabular-nums"
+      title={`input ${stats.input.toLocaleString('en-US')} · cached ${stats.cached_input.toLocaleString(
+        'en-US',
+      )} · output ${stats.output.toLocaleString('en-US')} · reasoning ${stats.reasoning.toLocaleString(
+        'en-US',
+      )}`}
+    >
+      {formatTokens(stats.total)} tokens · {stats.window_label}
+    </div>
+  );
+}
+
+// Codex active but with no % rows to draw — guidance + any token stats + a
+// diagnostics copy. Mirrors EmptyUsage's copy-state machinery.
+function CodexEmpty({ meta }: { meta?: CodexMeta }) {
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'done' | 'error'>('idle');
+
+  async function copyDiagnostics() {
+    setCopyState('copying');
+    try {
+      await navigator.clipboard.writeText(await codexDiagnostics());
+      setCopyState('done');
+    } catch (e) {
+      console.error(e);
+      setCopyState('error');
+    }
+  }
+
+  const copyLabel =
+    copyState === 'copying'
+      ? 'Copying…'
+      : copyState === 'done'
+        ? 'Copied ✓'
+        : copyState === 'error'
+          ? 'Copy failed'
+          : 'Copy Codex diagnostics';
+
+  return (
+    <div>
+      <div className="text-2xs text-fg-tertiary">{meta?.note ?? 'No usage data yet.'}</div>
+      {meta?.token_stats && (
+        <div className="mt-0.5">
+          <CodexTokenStatsRow stats={meta.token_stats} />
+        </div>
+      )}
+      <button
+        onClick={copyDiagnostics}
+        className="mt-1 text-2xs text-fg-quaternary underline hover:text-fg-secondary"
+      >
+        {copyLabel}
+      </button>
+    </div>
+  );
+}
+
+// "1800" → "1.8K", "2400000" → "2.4M". Token totals get large; keep it compact.
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return `${n}`;
+}
+
+// "5m ago" / "2h 13m ago" / "3d 4h ago" — past-relative counterpart to
+// relativeFromNow, for Codex's "Updated …" line.
+function formatAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (diffMs < 60_000) return 'just now';
+  const totalMin = Math.floor(diffMs / 60_000);
+  const days = Math.floor(totalMin / 1440);
+  const hours = Math.floor((totalMin % 1440) / 60);
+  const mins = totalMin % 60;
+  if (days >= 1) return `${days}d ${hours}h ago`;
+  if (hours >= 1) return `${hours}h ${mins}m ago`;
+  return `${mins}m ago`;
 }
 
 // Shown when a service is active but has no metered quota row to draw — an
