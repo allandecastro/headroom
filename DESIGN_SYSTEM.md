@@ -208,7 +208,7 @@ Exports: PNG at 16×16, 22×22, 32×32, and 64×64 (the last two are @2x for ret
 
 Tabler outline set. Never `-filled` variants. Sizes 12, 13, 14, 16 px depending on context. Color inherits from text via `currentColor`.
 
-The Claude Code logo is a custom inline SVG (placeholder uses `ti-sparkles` until the official mark is added at `assets/services/claude-code.svg`).
+Provider marks are custom inline SVGs (`src/components/onboarding/icons.tsx`) that inherit `currentColor` and render at 14 px in card headers, settings rows, and onboarding: the **Claude** burst, the **GitHub** mark for Copilot, and the official **OpenAI Codex** mark.
 
 ---
 

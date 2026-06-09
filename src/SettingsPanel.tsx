@@ -11,7 +11,7 @@ import { SegmentedControl } from './components/ui/SegmentedControl';
 import { Toggle } from './components/ui/Toggle';
 import { Slider } from './components/ui/Slider';
 import { Button } from './components/ui/Button';
-import { ClaudeIcon, GitHubIcon, LinkedInIcon } from './components/onboarding/icons';
+import { ClaudeIcon, GitHubIcon, LinkedInIcon, CodexIcon } from './components/onboarding/icons';
 import {
   getSettings,
   setSettings,
@@ -24,6 +24,7 @@ import {
   installUpdate,
   copilotDiagnostics,
   claudeDiagnostics,
+  codexDiagnostics,
   listCopilotAccounts,
   removeCopilotAccount,
   setCopilotAccountLabel,
@@ -62,6 +63,7 @@ const DEFAULT_SETTINGS: Settings = {
   notify_crit_pct: 95,
   show_claude_design: false,
   check_updates: true,
+  codex_live_query: true,
   notified_update_version: '',
 };
 
@@ -75,7 +77,7 @@ const LINKEDIN_URL = 'https://www.linkedin.com/in/allandecastro/';
 
 // ─── Connected pill ──────────────────────────────────────────────────────────
 
-function ConnectedPill() {
+function ConnectedPill({ label = 'Connected' }: { label?: string }) {
   return (
     <span
       className="inline-flex items-center gap-1 text-[10px]"
@@ -92,7 +94,7 @@ function ConnectedPill() {
           flexShrink: 0,
         }}
       />
-      Connected
+      {label}
     </span>
   );
 }
@@ -119,9 +121,21 @@ interface ServiceRowProps {
   staticName: string;
   credentialKey: 'claude' | 'copilot';
   onSignOut: () => void;
+  diagButtonLabel: string;
+  onDiagnostics: () => void;
+  diagBusy: boolean;
 }
 
-function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: ServiceRowProps) {
+function ServiceRow({
+  icon,
+  svc,
+  staticName,
+  credentialKey,
+  onSignOut,
+  diagButtonLabel,
+  onDiagnostics,
+  diagBusy,
+}: ServiceRowProps) {
   const state = svc?.state;
   const displayName = svc ? (svc.plan ? `${svc.name} · ${svc.plan}` : svc.name) : staticName;
 
@@ -149,21 +163,30 @@ function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: Service
           {statusEl}
         </span>
       </div>
-      <div className="flex gap-1.5">
-        <Button
-          className="text-xxs px-[9px] py-[3px]"
-          onClick={() => openOnboarding().catch(console.error)}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onDiagnostics}
+          disabled={diagBusy}
+          className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
         >
-          Re-auth
-        </Button>
-        <Button
-          className="text-xxs px-[9px] py-[3px]"
-          onClick={() => {
-            clearCredentials(credentialKey).then(onSignOut).catch(console.error);
-          }}
-        >
-          Sign out
-        </Button>
+          {diagButtonLabel}
+        </button>
+        <div className="flex gap-1.5">
+          <Button
+            className="text-xxs px-[9px] py-[3px]"
+            onClick={() => openOnboarding().catch(console.error)}
+          >
+            Re-auth
+          </Button>
+          <Button
+            className="text-xxs px-[9px] py-[3px]"
+            onClick={() => {
+              clearCredentials(credentialKey).then(onSignOut).catch(console.error);
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -315,6 +338,66 @@ function CopilotAccounts({
   );
 }
 
+// ─── Codex (local, no sign-in) ───────────────────────────────────────────────
+
+function CodexRow({
+  svc,
+  liveQuery,
+  onToggleLive,
+  diagButtonLabel,
+  onDiagnostics,
+  diagBusy,
+}: {
+  svc: ServiceStatus | undefined;
+  liveQuery: boolean;
+  onToggleLive: (v: boolean) => void;
+  diagButtonLabel: string;
+  onDiagnostics: () => void;
+  diagBusy: boolean;
+}) {
+  // Codex is local-only: it's Active whenever `~/.codex` exists (even with no
+  // numbers yet), and NeedsSetup (hidden in the popover) when it doesn't.
+  const detected = svc?.state === 'active';
+  return (
+    <>
+      <div className="flex items-center gap-2.5 py-2">
+        <span className="text-fg-secondary">
+          <CodexIcon />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-[12px] text-fg-primary">
+            {svc?.plan ? `Codex · ${svc.plan}` : 'Codex'}
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-fg-tertiary">
+            {detected ? (
+              <ConnectedPill label="Detected" />
+            ) : (
+              <span>Not detected — install Codex CLI</span>
+            )}
+          </span>
+        </div>
+        <button
+          onClick={onDiagnostics}
+          disabled={diagBusy}
+          className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
+        >
+          {diagButtonLabel}
+        </button>
+      </div>
+      <Row>
+        <div className="flex flex-1 flex-col">
+          <span className="text-[12px] text-fg-secondary">Live usage query</span>
+          <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
+            Fetch fresh limits from Codex’s own endpoint (no extra sign-in). Off = read local logs
+            only.
+          </span>
+        </div>
+        <Toggle checked={liveQuery} onChange={onToggleLive} ariaLabel="Codex live usage query" />
+      </Row>
+    </>
+  );
+}
+
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
@@ -362,16 +445,22 @@ export default function SettingsPanel() {
   }, []);
 
   const [diag, setDiag] = useState<{
-    which: 'claude' | 'copilot';
+    which: 'claude' | 'copilot' | 'codex';
     state: 'copying' | 'done' | 'error';
   } | null>(null);
 
   // Copy the raw (token-redacted) usage payload for a service to the clipboard —
   // for reporting these undocumented endpoints' real shapes. Claude reads
-  // /api/.../usage; Copilot reads copilot_internal/user.
-  function copyDiagnostics(which: 'claude' | 'copilot') {
+  // /api/.../usage; Copilot reads copilot_internal/user; Codex dumps its live
+  // /codex/usage payload + latest local rate_limits line.
+  function copyDiagnostics(which: 'claude' | 'copilot' | 'codex') {
     setDiag({ which, state: 'copying' });
-    const fetcher = which === 'claude' ? claudeDiagnostics : copilotDiagnostics;
+    const fetcher =
+      which === 'claude'
+        ? claudeDiagnostics
+        : which === 'codex'
+          ? codexDiagnostics
+          : copilotDiagnostics;
     fetcher()
       .then((raw) => navigator.clipboard.writeText(raw))
       .then(() => setDiag({ which, state: 'done' }))
@@ -381,7 +470,7 @@ export default function SettingsPanel() {
       });
   }
 
-  function diagLabel(which: 'claude' | 'copilot', name: string): string {
+  function diagLabel(which: 'claude' | 'copilot' | 'codex', name: string): string {
     if (diag?.which !== which) return name;
     return diag.state === 'copying' ? 'Copying…' : diag.state === 'done' ? 'Copied ✓' : 'Failed';
   }
@@ -480,6 +569,7 @@ export default function SettingsPanel() {
   const pollValue = String(settings.poll_interval_secs) as PollValue;
 
   const claudeSvc = snapshot?.services.find((s) => s.id === 'claude');
+  const codexSvc = snapshot?.services.find((s) => s.id === 'codex');
 
   return (
     <div className="h-screen overflow-y-auto bg-window-opaque text-fg-primary">
@@ -548,11 +638,25 @@ export default function SettingsPanel() {
             staticName="Claude"
             credentialKey="claude"
             onSignOut={refreshSnapshot}
+            diagButtonLabel={diagLabel('claude', 'Diagnostics')}
+            onDiagnostics={() => copyDiagnostics('claude')}
+            diagBusy={diag?.which === 'claude' && diag.state === 'copying'}
           />
         </Group>
 
         <Group label="GitHub Copilot accounts">
           <CopilotAccounts snapshot={snapshot} onChange={refreshSnapshot} />
+        </Group>
+
+        <Group label="Codex">
+          <CodexRow
+            svc={codexSvc}
+            liveQuery={settings.codex_live_query}
+            onToggleLive={(v) => update({ codex_live_query: v })}
+            diagButtonLabel={diagLabel('codex', 'Diagnostics')}
+            onDiagnostics={() => copyDiagnostics('codex')}
+            diagBusy={diag?.which === 'codex' && diag.state === 'copying'}
+          />
         </Group>
 
         {/* NOTIFICATIONS */}
@@ -642,23 +746,6 @@ export default function SettingsPanel() {
               onChange={(v) => update({ check_updates: v })}
               ariaLabel="Check for updates automatically"
             />
-          </Row>
-          <Row>
-            <div className="flex flex-1 flex-col">
-              <span className="text-[12px] text-fg-secondary">Claude diagnostics</span>
-              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
-                Copy Claude’s raw usage payload (token redacted) to report a problem
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => copyDiagnostics('claude')}
-                disabled={diag?.state === 'copying'}
-                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
-              >
-                {diagLabel('claude', 'Claude')}
-              </button>
-            </div>
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>

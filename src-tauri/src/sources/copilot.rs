@@ -200,6 +200,7 @@ impl CopilotSource {
             quotas,
             error_detail: None,
             copilot_usage: Some(usage),
+            codex_meta: None,
         })
     }
 

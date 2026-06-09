@@ -69,6 +69,31 @@ export type CopilotUsage =
     }
   | { mode: 'unknown'; raw_snapshot_ids: string[] };
 
+// Codex extras, mirroring the Rust `CodexMeta` in src-tauri/src/sources/codex.rs.
+// Codex usage is read locally (no sign-in): either the live `/codex/usage`
+// endpoint or the local rollout logs. This block carries the "as of / source"
+// info, credits balance, and token-consumption stats the card renders.
+export type CodexSourceKind = 'live' | 'logs' | 'empty';
+
+export interface CodexTokenStats {
+  input: number;
+  cached_input: number;
+  output: number;
+  reasoning: number;
+  total: number;
+  window_label: string; // e.g. "last 24h"
+}
+
+export interface CodexMeta {
+  source: CodexSourceKind;
+  captured_at?: string; // ISO 8601 — when the snapshot was recorded
+  stale?: boolean; // a log snapshot whose window already reset
+  token_expired?: boolean; // the live token was rejected — run `codex` to refresh
+  credits_balance?: string; // e.g. "$12.34", when present
+  token_stats?: CodexTokenStats;
+  note?: string; // guidance shown when there are no % rows
+}
+
 export interface ServiceStatus {
   id: string;
   name: string;
@@ -77,6 +102,7 @@ export interface ServiceStatus {
   quotas: Quota[];
   error_detail?: string;
   copilot_usage?: CopilotUsage; // Copilot only; drives the Unlimited / Unknown states
+  codex_meta?: CodexMeta; // Codex only; "as of / source", credits, token stats
 }
 
 export interface Snapshot {

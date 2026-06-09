@@ -26,6 +26,11 @@ pub struct Settings {
     /// Periodically check GitHub for a newer release and notify once when found.
     #[serde(default = "default_true")]
     pub check_updates: bool,
+    /// Query Codex's own `/codex/usage` endpoint for fresh rate limits, using the
+    /// token already stored by the Codex CLI in `~/.codex`. When off, Headroom
+    /// reads only Codex's local rollout logs (no network). Default on.
+    #[serde(default = "default_true")]
+    pub codex_live_query: bool,
     /// Latest version already notified about, so the toast fires once per new
     /// release rather than on every check. Empty = none yet. Carried through the
     /// renderer's settings round-trip but never shown in the UI.
@@ -47,6 +52,7 @@ impl Default for Settings {
             notify_crit_pct: 95,
             show_claude_design: false,
             check_updates: true,
+            codex_live_query: true,
             notified_update_version: String::new(),
         }
     }
@@ -190,6 +196,7 @@ mod tests {
             notify_crit_pct: 90,
             show_claude_design: true,
             check_updates: false,
+            codex_live_query: false,
             notified_update_version: "1.3.0".to_string(),
         };
         let json = serde_json::to_string(&s).unwrap();

@@ -166,6 +166,9 @@ pub async fn set_settings(
     let settings = settings.sanitized();
     settings.save().map_err(|e| e.to_string())?;
     *state.settings.write().await = settings.clone();
+    // The Codex live-query toggle changes how its source is built, so rebuild the
+    // source list to apply it on the next poll.
+    crate::orchestrator::rebuild_sources(state.inner()).await;
     // Let open windows react live (theme switch, Claude Design toggle, …).
     let _ = app.emit("settings-updated", &settings);
     Ok(())
@@ -509,6 +512,18 @@ pub async fn claude_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Resul
         .fetch_raw(&session, org_id.as_deref())
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Diagnostics: dump Codex's resolved home, CLI version, auth mode, the live
+/// `/codex/usage` payload (tokens redacted) when reachable, and the latest local
+/// `rate_limits` line. Used to report exec-mode null logs (openai/codex#14728) or
+/// endpoint shape changes. Reads no Headroom credentials — Codex is local-only.
+#[tauri::command]
+pub async fn codex_diagnostics(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+    let live = state.settings.read().await.codex_live_query;
+    crate::sources::codex::CodexSource::new(live)
+        .diagnostics()
+        .await
 }
 
 /// Show (and focus) a named window if it exists.

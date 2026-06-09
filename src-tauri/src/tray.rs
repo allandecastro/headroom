@@ -232,6 +232,7 @@ mod tests {
             quotas,
             error_detail: None,
             copilot_usage: None,
+            codex_meta: None,
         }
     }
 

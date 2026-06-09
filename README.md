@@ -5,7 +5,7 @@
 <h1 align="center">Headroom</h1>
 
 <p align="center">
-  <strong>Know your headroom — a menu bar app that tracks Claude Code and GitHub Copilot quotas before you hit them.</strong>
+  <strong>Know your headroom — a menu bar app that tracks Claude Code, OpenAI Codex, and GitHub Copilot quotas before you hit them.</strong>
 </p>
 
 <p align="center">
@@ -39,17 +39,17 @@
 
 Headroom sits in your menu bar and shows, at a glance, how much of your AI coding assistant budget you have left — across the rolling 5-hour window, the 7-day weekly cap, and the monthly Copilot allowance. It tells you when to switch from Opus to Sonnet, how long until the next reset, and projects whether you'll make it to Monday at your current pace.
 
-It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually use these tools all day and have run into the "usage limit reached" wall mid-task.
+It is built for developers on Claude Pro/Max, ChatGPT-plan Codex, and Copilot Pro/Pro+ who actually use these tools all day and have run into the "usage limit reached" wall mid-task.
 
 ---
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/widget.png" alt="Headroom popover showing live Claude and multiple GitHub Copilot account quotas" width="320" />
+  <img src="docs/screenshots/widget.png" alt="Headroom popover showing live Claude, OpenAI Codex, and multiple GitHub Copilot account quotas" width="320" />
 </p>
 
-<p align="center"><sub>The menu-bar popover — live quotas for Claude and every connected GitHub Copilot account, with reset countdowns and burndown projection.</sub></p>
+<p align="center"><sub>The menu-bar popover — live quotas for Claude, OpenAI Codex, and every connected GitHub Copilot account, with reset countdowns and burndown projection.</sub></p>
 
 <p align="center">
   <img src="docs/screenshots/setup.png" alt="Onboarding window" width="360" />
@@ -71,7 +71,8 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Features
 
-- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design) and GitHub Copilot (monthly AI Credits / premium requests, with the plan and cap read live from your account). The percentages are the **server-enforced** numbers — read straight off the same endpoints `claude.ai/settings/usage` and your GitHub account use — never reconstructed by parsing local logs, so they can't drift from the quota that's actually enforced.
+- **Live quota tracking** for Claude (current session, weekly all-models, weekly Sonnet, weekly Opus, optional Claude Design), **OpenAI Codex** (the rolling 5-hour and weekly rate-limit windows, with plan tier, credits balance, and recent token consumption), and GitHub Copilot (monthly AI Credits / premium requests, with the plan and cap read live from your account). For Claude and Copilot the percentages are the **server-enforced** numbers — read straight off the same endpoints `claude.ai/settings/usage` and your GitHub account use — never reconstructed by parsing local logs, so they can't drift from the quota that's actually enforced.
+- **Codex needs no sign-in.** Headroom reads your Codex usage straight from `~/.codex`: it queries Codex's _own_ usage endpoint with the token already stored there (when you're signed in to ChatGPT in Codex) and falls back to Codex's local rollout logs, so there's nothing to paste. It also surfaces your recent token consumption (input / cached / output / reasoning). Toggle the live query off under Settings → _Codex_ to read local logs only.
 - **Tray icon** colour-coded green / amber / red from the worst quota across services; hover shows the percentage; the tray menu offers Open / Set up accounts / Settings / Quit.
 - **7-day burndown** — a per-quota sparkline of recent utilization plus an _"On track · ~N% by reset"_ projection that flips to _"On track to exceed · full in Xd"_ if you're pacing past the cap. The recent-burn-rate pace is the one figure derived from your locally-sampled history rather than the server; if that history has a gap (the app was closed for a stretch) the pace is shown muted as _"rough (history gap)"_ rather than raising a false alarm.
 - **Magic sign-in for both** — _"Sign in with Claude"_ opens an embedded webview that grabs the session cookie; **Copilot** has _"Sign in with GitHub"_ (OAuth device flow — enter a short code, no token to create). Each has a paste fallback under _Advanced_ (a Claude session key, or any GitHub token). The plan and quota cap are read from your account (see [SPEC.md § Auth flows](SPEC.md#auth-flows)).
@@ -86,7 +87,7 @@ It is built for developers on Claude Pro/Max and Copilot Pro/Pro+ who actually u
 
 ## Status
 
-**Stable.** Both Claude and Copilot run live against the official endpoints, with credentials in the OS keychain; the burndown + sparkline + recent-burn-rate pace, threshold notifications, autostart, single-instance lock, and the click-to-expand chart all ship in the popover. Recent releases added **multiple GitHub Copilot accounts** (one card per account), **one-click updates** (download-install-relaunch from the popover), **"Sign in with GitHub"** for Copilot, regime-aware **GitHub AI-Credits** handling (after GitHub's 2026 billing migration), and per-service **diagnostics**. The latest version is on the [Releases](https://github.com/allandecastro/headroom/releases) page; see [CHANGELOG.md](CHANGELOG.md) for full notes and [FAQ.md § Scope](FAQ.md#scope) for what's next.
+**Stable.** Claude and Copilot run live against the official endpoints with credentials in the OS keychain, and **OpenAI Codex** is read locally — no sign-in — from `~/.codex` (its own usage endpoint plus the rollout logs). The burndown + sparkline + recent-burn-rate pace, threshold notifications, autostart, single-instance lock, and the click-to-expand chart all ship in the popover. Recent releases added **OpenAI Codex** support, **multiple GitHub Copilot accounts** (one card per account), **one-click updates** (download-install-relaunch from the popover), **"Sign in with GitHub"** for Copilot, regime-aware **GitHub AI-Credits** handling (after GitHub's 2026 billing migration), and per-service **diagnostics**. The latest version is on the [Releases](https://github.com/allandecastro/headroom/releases) page; see [CHANGELOG.md](CHANGELOG.md) for full notes and [FAQ.md § Scope](FAQ.md#scope) for what's next.
 
 ---
 
@@ -132,7 +133,7 @@ headroom/
 │   └── main.tsx
 ├── src-tauri/              # Rust backend
 │   ├── src/
-│   │   ├── sources/        # QuotaSource trait + claude.rs, copilot.rs
+│   │   ├── sources/        # QuotaSource trait + claude.rs, codex.rs, copilot.rs
 │   │   ├── commands.rs     # Tauri IPC handlers exposed to the renderer
 │   │   ├── credentials.rs  # OS keychain wrapper
 │   │   ├── history.rs      # Persisted per-quota usage time series
@@ -211,8 +212,9 @@ Headroom exists because the data acquisition problem had already been solved by 
 - [rishi-banerjee1/claude-usage-widget](https://github.com/rishi-banerjee1/claude-usage-widget) — Swift single-file approach, Cloudflare retry logic
 - [bristena-op/copilot-usage-tracker](https://github.com/bristena-op/copilot-usage-tracker) — confirmed the original GitHub billing API endpoint for premium requests
 - [kasuken/vscode-copilot-insights](https://github.com/kasuken/vscode-copilot-insights) — pointed us at the `copilot_internal/user` endpoint and its AI-Credits quota shape
+- [douglasmonsky/codex-usage-tracker](https://github.com/douglasmonsky/codex-usage-tracker) and [xiangz19/codex-ratelimit](https://github.com/xiangz19/codex-ratelimit) — confirmed Codex's rate limits live in the local `~/.codex` rollout logs (the `token_count` events)
 
-Headroom's contribution is combining both services in one native menu bar app, with multiple auth paths and a cohesive design.
+Headroom's contribution is combining all three services in one native menu bar app, with multiple auth paths and a cohesive design.
 
 ---
 

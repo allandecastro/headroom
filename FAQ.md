@@ -6,7 +6,7 @@ Common questions about Headroom. If something's missing, [open an issue](https:/
 
 ### Does Headroom send any data anywhere?
 
-No. Headroom is local-only: no telemetry, no analytics, no backend. The only network calls it makes are to your AI vendors' own APIs (`claude.ai`, `api.github.com`) to fetch _your_ usage, using _your_ credentials. Everything else lives on your machine.
+No. Headroom is local-only: no telemetry, no analytics, no backend. The only network calls it makes are to your AI vendors' own APIs — `claude.ai`, `api.github.com`, and (for Codex's live usage query) `chatgpt.com` — to fetch _your_ usage, using _your_ credentials. For Codex it also reads your local `~/.codex` files (the token the Codex CLI already stored there, and its session logs); nothing read from there is sent anywhere. Everything else lives on your machine.
 
 ### Where are my credentials stored?
 
@@ -49,6 +49,14 @@ Some Copilot **Business / Enterprise** seats draw from **org-pooled AI Credits**
 
 Easiest path: click **Sign in with Claude** in onboarding — the embedded webview signs you in and captures the cookie automatically. If that doesn't work (some Linux distros lack the right webkit, some identity providers behave oddly inside webviews), use the paste path: in your browser, sign in to `claude.ai`, open DevTools → Application → Cookies → `claude.ai` → copy the value of `sessionKey`.
 
+### How do I connect Codex?
+
+You don't — there's no sign-in. If you use the [Codex CLI](https://github.com/openai/codex), Headroom finds it automatically and reads your usage from `~/.codex`: it queries Codex's own usage endpoint with the token the CLI already stored (when you're signed in to ChatGPT in Codex) and falls back to Codex's local session logs. Nothing to paste, nothing in the keychain. If your Codex home lives somewhere non-standard, set the `CODEX_HOME` environment variable. You can turn the live query off (read local logs only) under Settings → _Codex_.
+
+### Can Headroom track Codex usage from another machine?
+
+Only partially, because Headroom reads whatever is on the laptop it runs on. If you run Codex on a different machine than Headroom, Headroom won't see anything — without a `~/.codex` directory, the Codex card hides itself ("Not detected"). The closest setup is to install the Codex CLI and sign in to ChatGPT on the **same** machine as Headroom, with the live query on: your **5-hour and weekly limits** are enforced per ChatGPT account server-side, so Codex's usage endpoint returns your account-wide consumption no matter which machine burned it. The **token-consumption stats** ("… tokens · last 24h") are different — they come only from the local session logs, so they reflect that machine's `codex` runs alone. There's no way to pull another laptop's token history remotely.
+
 ## Troubleshooting
 
 ### My tray icon is hidden!
@@ -62,6 +70,10 @@ This happens when running a loose `.exe` launched from a terminal — Windows at
 ### My Copilot card says it couldn't fetch usage.
 
 `copilot_internal/user` is an internal GitHub endpoint, so an `HTTP 401/403` means the token was rejected — regenerate one at [github.com/settings/tokens/new](https://github.com/settings/tokens/new) and paste it again. A `404`/other error usually means GitHub changed or restricted the endpoint for your account type; please [open an issue](https://github.com/allandecastro/headroom/issues) with the status code.
+
+### My Codex card says "No rate-limit data yet."
+
+Codex only records its rate-limit windows during **interactive** `codex` sessions — runs in exec/automation mode log them as empty ([openai/codex#14728](https://github.com/openai/codex/issues/14728)). If you've only run Codex non-interactively, run it once in the terminal to populate the data, or sign in to ChatGPT in Codex so Headroom can query the live endpoint instead. Token-consumption stats still show either way. Use Settings → _Codex_ → **Diagnostics** to copy what Headroom found (tokens redacted) when reporting a problem.
 
 ### The trend sparkline says "collecting…".
 
@@ -90,9 +102,9 @@ A few things are intentionally **out of scope** to keep Headroom a focused tray 
 - **No web sync, no accounts, no backend** — local-first; everything lives on your machine.
 - **No team / org rollups** — Headroom is a personal tool. Team billing dashboards are a different product.
 
-### Will you support Cursor / Codex / Gemini / Perplexity?
+### Will you support Cursor / Gemini / Perplexity?
 
-Yes — that's the natural next direction. Each is a new file under `src-tauri/src/sources/` implementing the `QuotaSource` trait. Follow [open issues](https://github.com/allandecastro/headroom/issues?q=is%3Aissue+label%3Aenhancement) or open one for the service you want most. PRs welcome.
+**OpenAI Codex already ships** — no sign-in, it reads your local `~/.codex`. The rest are the natural next direction: each is a new file under `src-tauri/src/sources/` implementing the `QuotaSource` trait. Follow [open issues](https://github.com/allandecastro/headroom/issues?q=is%3Aissue+label%3Aenhancement) or open one for the service you want most. PRs welcome.
 
 ### Does Headroom tell me when there's a new version?
 
