@@ -6,6 +6,8 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-06-09
+
 ### Added
 
 - **OpenAI Codex.** Headroom now tracks Codex usage as a third provider — with
@@ -18,6 +20,20 @@ All notable changes to Headroom are recorded here. The format follows
   switches between the live query and local-logs-only, and a **Diagnostics**
   action copies the raw payload (tokens redacted). ([#54])
 
+### Fixed
+
+- **Claude sign-in is more resilient.** When the cookie poll times out, sign-in
+  now reports a `claude-signin-error` and closes the stale login window instead
+  of failing silently and leaving the UI stuck on "Signing in…" — onboarding now
+  shows pending/error feedback, mirroring the Copilot flow. The Claude
+  organisation UUID is cached after the first resolve, so every later poll skips
+  an extra `/api/organizations` round-trip (and is cleared on sign-out). Manual
+  **Refresh** now runs a full poll cycle — tray and notifications, not just the
+  popover — and resets the background loop's interval so the next automatic poll
+  is scheduled from the refresh rather than landing moments later on the old
+  schedule. ([#53])
+
+[#53]: https://github.com/allandecastro/headroom/pull/53
 [#54]: https://github.com/allandecastro/headroom/pull/54
 
 ## [1.5.1] — 2026-06-03
