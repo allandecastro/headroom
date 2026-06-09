@@ -20,6 +20,7 @@ export default function App() {
   const [installing, setInstalling] = useState(false);
   const [installPct, setInstallPct] = useState<number | null>(null);
   const [installError, setInstallError] = useState(false);
+  const [brewLaunched, setBrewLaunched] = useState(false);
   const [, forceTick] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   useFitWindowHeight(bodyRef, 360, true);
@@ -84,6 +85,11 @@ export default function App() {
       if (outcome?.kind === 'open_url') {
         open(outcome.url).catch(console.error);
         setInstalling(false);
+      } else if (outcome?.kind === 'brew') {
+        // Homebrew upgrade is running in Terminal; brew will quit and replace
+        // the app itself, so just surface that it's underway.
+        setInstalling(false);
+        setBrewLaunched(true);
       }
     } catch (e) {
       console.error(e);
@@ -110,7 +116,9 @@ export default function App() {
                   {installError ? 'Update failed' : `Headroom v${update.version} available`}
                 </span>
                 <span className="flex items-center gap-2.5">
-                  {installing ? (
+                  {brewLaunched ? (
+                    <span className="text-[11px] text-fg-tertiary">Upgrading in Terminal…</span>
+                  ) : installing ? (
                     <span className="text-[11px] text-fg-tertiary">
                       {installPct !== null ? `Downloading… ${installPct}%` : 'Installing…'}
                     </span>

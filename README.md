@@ -79,7 +79,7 @@ It is built for developers on Claude Pro/Max, ChatGPT-plan Codex, and Copilot Pr
 - **Multiple GitHub Copilot accounts** — connect more than one GitHub account (a personal seat and a work seat, or seats in different orgs) and Headroom shows one card per account, each with its own quota and history. Add, remove, and rename accounts under Settings → _GitHub Copilot accounts_ (the per-user API has no org name, so each is labelled by its login and renameable to the org).
 - **Credentials in the OS keychain** — Windows Credential Manager / macOS Keychain / Secret Service on Linux. Nothing leaves your machine.
 - **Configurable threshold notifications** — orange "heads-up" and red "critical" alerts at user-set percentages, fired once per crossing.
-- **One-click updates** — checks GitHub for newer releases (on launch + every ~6h) and surfaces a one-time desktop alert plus an **Update now** banner in the popover; clicking it downloads, installs, and relaunches the new version (Windows MSI + Linux AppImage; macOS and `.deb` open the release page). Check on demand or toggle it off in Settings.
+- **One-click updates** — checks GitHub for newer releases (on launch + every ~6h) and surfaces a one-time desktop alert plus an **Update now** banner in the popover; clicking it downloads, installs, and relaunches the new version (Windows MSI + Linux AppImage self-install; a Homebrew-installed macOS app runs `brew upgrade` in Terminal; a direct `.dmg`/`.deb` opens the release page). Check on demand or toggle it off in Settings.
 - **Launch at login** + **single-instance lock** — second launches surface the running tray instead of stacking icons.
 - **Live theme switching** (auto / light / dark) and a popover that auto-fits its content above the taskbar.
 
@@ -93,15 +93,29 @@ It is built for developers on Claude Pro/Max, ChatGPT-plan Codex, and Copilot Pr
 
 ## Install
 
+### macOS (Homebrew — recommended)
+
+```bash
+brew install --cask allandecastro/headroom/headroom
+```
+
+This is the smoothest macOS path: the cask handles Gatekeeper for you, so the app launches without any "damaged" warning. (Apple Silicon only — that's the macOS build the release pipeline ships.)
+
 ### From a release
 
 Grab the installer for your platform from the [Releases](https://github.com/allandecastro/headroom/releases) page:
 
 - **Windows:** `Headroom_x.y.z_x64_en-US.msi` (per-user install; registers the AppUserModelID so toast notifications correctly attribute to "Headroom").
-- **macOS:** `Headroom_x.y.z_aarch64.dmg` / `_x64.dmg`.
+- **macOS:** `Headroom_x.y.z_aarch64.dmg` (Apple Silicon).
 - **Linux:** `Headroom_x.y.z_amd64.AppImage` or `.deb`.
 
 After installing, launch from the Start Menu / Launchpad and look in your system tray (Windows 11 may hide new tray icons under the `^` overflow — drag the icon out once and it stays visible).
+
+> **macOS — "Headroom is damaged and can't be opened"?** Headroom is not yet notarized through the Apple Developer Program, so Gatekeeper blocks the directly-downloaded `.dmg` with that misleading message (the download is fine). Either install via Homebrew above, or clear the quarantine flag after dragging the app to `/Applications`:
+>
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/Headroom.app
+> ```
 
 ### From source
 

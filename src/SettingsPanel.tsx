@@ -430,7 +430,7 @@ export default function SettingsPanel() {
   const [appVersion, setAppVersion] = useState('');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateStatus, setUpdateStatus] = useState<
-    'idle' | 'checking' | 'uptodate' | 'installing' | 'error'
+    'idle' | 'checking' | 'uptodate' | 'installing' | 'brew' | 'error'
   >('idle');
   const [installPct, setInstallPct] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -500,6 +500,9 @@ export default function SettingsPanel() {
       if (outcome?.kind === 'open_url') {
         openUrl(outcome.url);
         setUpdateStatus('idle');
+      } else if (outcome?.kind === 'brew') {
+        // brew upgrade runs in Terminal and replaces the app from there.
+        setUpdateStatus('brew');
       }
     } catch (err) {
       console.error(err);
@@ -701,7 +704,9 @@ export default function SettingsPanel() {
               </span>
             </div>
             {updateInfo ? (
-              updateStatus === 'installing' ? (
+              updateStatus === 'brew' ? (
+                <span className="text-[10.5px] text-fg-quaternary">Upgrading in Terminal…</span>
+              ) : updateStatus === 'installing' ? (
                 <span className="text-[10.5px] text-fg-quaternary">
                   {installPct !== null ? `Downloading… ${installPct}%` : 'Installing…'}
                 </span>

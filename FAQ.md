@@ -59,6 +59,19 @@ Only partially, because Headroom reads whatever is on the laptop it runs on. If 
 
 ## Troubleshooting
 
+### macOS says "Headroom is damaged and can't be opened. You should move it to the Trash."
+
+The download isn't actually damaged. Headroom is **ad-hoc signed but not yet notarized** through the Apple Developer Program, so when macOS sees the quarantine flag it puts on internet downloads, Gatekeeper refuses to open the app — and on Apple Silicon it phrases that refusal as "damaged". Two fixes:
+
+- **Install via Homebrew** (recommended) — `brew install --cask allandecastro/headroom/headroom`. The cask clears the quarantine flag for you, so the app just opens.
+- **Or clear it yourself** after dragging Headroom into `/Applications`:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Headroom.app
+  ```
+
+This goes away entirely once the macOS build is notarized (see [In-app auto-update? Code signing?](#in-app-auto-update-code-signing) below).
+
 ### My tray icon is hidden!
 
 On Windows 11, new tray icons land in the hidden overflow under the `^` chevron near the clock. Click `^`, find Headroom, drag it onto the always-visible taskbar.
@@ -112,4 +125,10 @@ Yes. It checks GitHub for a newer release on launch and every ~6 hours, and when
 
 ### In-app auto-update? Code signing?
 
-Auto-_install_ is planned but not free — Apple Developer Program is $99/yr, Windows EV cert ~$200/yr — so it'll wait until there are enough non-developer users to justify the cost. Until then Headroom **notifies** you of new versions (see above) and you grab the installer from the [Releases](https://github.com/allandecastro/headroom/releases) page.
+It depends on how you installed:
+
+- **Windows (MSI)** and **Linux AppImage** self-install — the "Update now" button downloads, installs, and relaunches in place.
+- **macOS via Homebrew** — "Update now" launches `brew upgrade --cask headroom` in a Terminal window for you (Homebrew quits and replaces the app, then you reopen it). This is the recommended macOS update path.
+- **macOS direct `.dmg`** and **Linux `.deb`** stay notify-only: the button opens the [Releases](https://github.com/allandecastro/headroom/releases) page for a manual download.
+
+True in-app self-update on macOS (an in-place bundle swap like Windows/Linux) is what's still gated on cost: it needs Apple Developer Program notarization ($99/yr), so it waits until there are enough non-developer users to justify it. The same "not signed" gap is why a directly-downloaded `.dmg` triggers the "damaged" Gatekeeper warning — the [Homebrew cask](https://github.com/allandecastro/headroom/tree/main/homebrew) sidesteps both the warning and the update problem for free.

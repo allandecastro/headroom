@@ -130,14 +130,21 @@ export interface UpdateProgress {
   content_length: number | null;
 }
 
-/** What the renderer should do after {@link installUpdate}. */
-export type InstallOutcome = { kind: 'open_url'; url: string };
+/**
+ * What the renderer should do after {@link installUpdate}.
+ * - `open_url`: open the release page (download fallback).
+ * - `brew`: macOS Homebrew install — `brew upgrade` was launched in Terminal,
+ *   which then quits and replaces the app, so there's nothing left to do.
+ */
+export type InstallOutcome = { kind: 'open_url'; url: string } | { kind: 'brew' };
 
 /**
  * Download and install the latest release, then relaunch. On a successful
- * in-app install the app restarts and this promise never resolves. On platforms
- * that can't self-install (macOS, `.deb`) — or any updater failure — it resolves
- * with `{ kind: 'open_url' }` so the caller opens the release page instead.
+ * in-app install the app restarts and this promise never resolves. On a macOS
+ * Homebrew install it resolves with `{ kind: 'brew' }` after launching
+ * `brew upgrade` in Terminal. On platforms that can't self-install (direct-DMG
+ * macOS, `.deb`) — or any updater failure — it resolves with
+ * `{ kind: 'open_url' }` so the caller opens the release page instead.
  * Subscribe to the `update-progress` event for a progress bar while it runs.
  */
 export function installUpdate(): Promise<InstallOutcome> {
