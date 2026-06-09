@@ -53,6 +53,10 @@ Easiest path: click **Sign in with Claude** in onboarding — the embedded webvi
 
 You don't — there's no sign-in. If you use the [Codex CLI](https://github.com/openai/codex), Headroom finds it automatically and reads your usage from `~/.codex`: it queries Codex's own usage endpoint with the token the CLI already stored (when you're signed in to ChatGPT in Codex) and falls back to Codex's local session logs. Nothing to paste, nothing in the keychain. If your Codex home lives somewhere non-standard, set the `CODEX_HOME` environment variable. You can turn the live query off (read local logs only) under Settings → _Codex_.
 
+### Can Headroom track Codex usage from another machine?
+
+Only partially, because Headroom reads whatever is on the laptop it runs on. If you run Codex on a different machine than Headroom, Headroom won't see anything — without a `~/.codex` directory, the Codex card hides itself ("Not detected"). The closest setup is to install the Codex CLI and sign in to ChatGPT on the **same** machine as Headroom, with the live query on: your **5-hour and weekly limits** are enforced per ChatGPT account server-side, so Codex's usage endpoint returns your account-wide consumption no matter which machine burned it. The **token-consumption stats** ("… tokens · last 24h") are different — they come only from the local session logs, so they reflect that machine's `codex` runs alone. There's no way to pull another laptop's token history remotely.
+
 ## Troubleshooting
 
 ### My tray icon is hidden!

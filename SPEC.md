@@ -144,6 +144,8 @@ This is Codex's own zero-cost rate-limit endpoint (no model turn is consumed). T
 
 When `~/.codex` is absent the source reports `NeedsSetup` (the popover hides it). When it exists but no rate-limit snapshot is available yet, the card shows guidance ("run an interactive `codex` session") plus any token stats. Both endpoints are undocumented and may change; parsing is defensive and degrades to that guidance rather than a blank card.
 
+**Machine scope.** Both reads are local to the host Headroom runs on, but they differ across machines. The live endpoint returns **account-wide** rate limits (enforced server-side per ChatGPT account), so percentages are accurate even when the work ran on another device — provided a signed-in `~/.codex` exists locally to supply the token. The rollout-log token stats are **host-local**: they only ever reflect `codex` sessions run on this machine, and there is no remote source for cumulative token history.
+
 ---
 
 ## Auth flows
