@@ -6,7 +6,19 @@ All notable changes to Headroom are recorded here. The format follows
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **OpenAI Codex.** Headroom now tracks Codex usage as a third provider — with
+  **no sign-in**. It reads your Codex rate-limit windows (the rolling 5-hour and
+  weekly caps) from Codex's own usage endpoint, using the token the Codex CLI
+  already stores in `~/.codex`, and falls back to Codex's local rollout logs; it
+  also surfaces your recent token consumption (input / cached / output /
+  reasoning) plus the credits balance and plan tier when available. The card
+  auto-appears only when `~/.codex` is present. A Settings → _Codex_ toggle
+  switches between the live query and local-logs-only, and a **Diagnostics**
+  action copies the raw payload (tokens redacted). ([#54])
+
+[#54]: https://github.com/allandecastro/headroom/pull/54
 
 ## [1.5.1] — 2026-06-03
 

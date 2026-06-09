@@ -67,6 +67,30 @@ const CLAUDE: ServiceStatus = {
   copilot_usage: undefined,
 };
 
+// Codex reads its windows + token stats locally (live `/wham/usage` or the
+// rollout logs) — see src-tauri/src/sources/codex.rs.
+const CODEX: ServiceStatus = {
+  id: 'codex',
+  name: 'Codex',
+  plan: 'Pro',
+  state: 'active',
+  quotas: [pct('five_hour', 'Current session · 5h', 31), pct('weekly_all', 'Weekly · 7d', 12)],
+  copilot_usage: undefined,
+  codex_meta: {
+    source: 'live',
+    captured_at: iso(-3 * 60_000), // 3 minutes ago
+    credits_balance: '$8.50',
+    token_stats: {
+      input: 720_000,
+      cached_input: 410_000,
+      output: 380_000,
+      reasoning: 140_000,
+      total: 1_240_000,
+      window_label: 'last 24h',
+    },
+  },
+};
+
 const ACCOUNTS: CopilotAccount[] = [
   { id: '1', login: 'octocat', label: 'octocat' },
   { id: '2', login: 'acme-bot', label: 'Acme Corp' },
@@ -76,6 +100,7 @@ const SNAPSHOT: Snapshot = {
   polled_at: Math.floor(Date.now() / 1000) - 7,
   services: [
     CLAUDE,
+    CODEX,
     copilotAccount('copilot:1', 'octocat', 53),
     copilotAccount('copilot:2', 'Acme Corp', 88),
   ],
@@ -89,6 +114,7 @@ const SETTINGS: Settings = {
   notify_crit_pct: 95,
   show_claude_design: false,
   check_updates: true,
+  codex_live_query: true,
   notified_update_version: '',
 };
 

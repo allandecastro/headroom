@@ -13,7 +13,7 @@ Technical specification for Headroom v1.
 
 - Multi-account support (one Claude account, one GitHub account per Headroom install).
 - Team/org rollups (Headroom is a personal tool, not a billing dashboard).
-- Cursor / Codex / Gemini / Perplexity integration (planned — open an issue if you'd build the adapter).
+- Cursor / Gemini / Perplexity integration (planned — open an issue if you'd build the adapter). **OpenAI Codex now ships** — see [Data sources](#data-sources).
 - Notifications beyond local desktop alerts (no Slack/Discord webhooks in v1).
 - Web sync of usage history.
 
@@ -36,6 +36,7 @@ Technical specification for Headroom v1.
 │                               │  ┌─────────┴──────────┐  │  │
 │                               │  │ sources/           │  │  │
 │                               │  │  - claude.rs       │  │  │
+│                               │  │  - codex.rs        │  │  │
 │                               │  │  - copilot.rs      │  │  │
 │                               │  └─────────┬──────────┘  │  │
 │                               │            │             │  │
@@ -110,6 +111,39 @@ The token is any GitHub token — a classic/OAuth token or PAT, no billing-speci
 
 Under token-based billing the `premium_interactions` quota is the **AI Credits** allowance. The adapter surfaces a single headline quota, picking the first _bounded_ entry (`unlimited == false` and `entitlement > 0`) in priority order `premium_interactions → chat → completions → any other`. This means a Pro/Pro+ account shows AI Credits, while a free/individual account (which reports `premium_interactions` with `entitlement: 0`) falls through to its `chat` allowance. For the chosen quota: `used = entitlement − quota_remaining`, `total = entitlement`, reset parsed from `quota_reset_date_utc` (falling back to the start of next month). Plans where every quota is unlimited surface no budget row.
 
+### OpenAI Codex
+
+Codex is **local-first and needs no sign-in** — Headroom reads it two ways, preferring the first:
+
+**1. Active query** (fresh; works even for exec-mode usage):
+
+```
+GET https://chatgpt.com/backend-api/wham/usage
+Authorization: Bearer {access_token}
+ChatGPT-Account-Id: {account_id}
+```
+
+This is Codex's own zero-cost rate-limit endpoint (no model turn is consumed). The `access_token` and `account_id` come from the token the Codex CLI already stores in `~/.codex/auth.json` (`CODEX_HOME` overrides the path); the account id and plan tier are read from `tokens.account_id` or decoded from the `id_token` JWT (`chatgpt_account_id` / `chatgpt_plan_type`). Headroom only **reads** `auth.json` — it never refreshes or rewrites it, to avoid racing the CLI. The URL path mirrors Codex's own `PathStyle` (`/wham/usage` for the ChatGPT backend, `/api/codex/usage` for a bare Codex API host). Gated by the `codex_live_query` setting (default on).
+
+**Response shape:**
+
+```json
+{
+  "rate_limit": {
+    "primary_window":   { "used_percent": 31, "window_minutes": 300,   "reset_at": 1781000000 },
+    "secondary_window": { "used_percent": 12, "window_minutes": 10080, "reset_at": 1781500000 }
+  }
+}
+```
+
+`reset_at` may be a unix int or an ISO-8601 string. `primary_window` (~5 h) maps to the `FiveHour` quota and `secondary_window` (~7 d) to `WeeklyAll`, as `used_percent` out of 100. When a limit is tagged `limit_id: "codex"` under `additional_rate_limits`, that one wins (matching Codex's own selection).
+
+**2. Local rollout logs** (fallback; also the source of the token-consumption stats):
+
+`~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Each `token_count` event may carry a `rate_limits` snapshot (`primary` / `secondary` with `used_percent`, `resets_at`) plus cumulative `total_token_usage` (input / cached / output / reasoning tokens). Headroom scans the newest files for the most recent **non-null** snapshot — exec-mode sessions log `rate_limits: null` ([openai/codex#14728](https://github.com/openai/codex/issues/14728)), so only interactive `codex` sessions populate it. A snapshot whose window already reset is re-based and flagged "may be stale". Token stats are summed over the last 24 h regardless of mode.
+
+When `~/.codex` is absent the source reports `NeedsSetup` (the popover hides it). When it exists but no rate-limit snapshot is available yet, the card shows guidance ("run an interactive `codex` session") plus any token stats. Both endpoints are undocumented and may change; parsing is defensive and degrades to that guidance rather than a blank card.
+
 ---
 
 ## Auth flows
@@ -142,6 +176,10 @@ For users who can't run a webview (some Linux distros without webkit2gtk, or air
 ### Copilot — fallback: paste a GitHub token
 
 Under "Advanced", the user can paste any GitHub personal access token (classic or fine-grained) — no specific permission is required — stored under `copilot.token`. The form links to `github.com/settings/tokens/new`. Either way, the plan tier and quota caps come from `copilot_internal/user`, so the user never supplies a username or plan.
+
+### Codex — no sign-in (local)
+
+Codex has no auth step in Headroom. The Codex CLI already stores its ChatGPT token in `~/.codex/auth.json`; Headroom reads it (read-only) for the live usage query and otherwise falls back to the local rollout logs, which need no token at all. There is nothing to paste and nothing stored in the keychain — see [Data sources / OpenAI Codex](#openai-codex). The onboarding card is informational only.
 
 ---
 
@@ -291,7 +329,7 @@ Two configurable thresholds drive local desktop notifications: a **warning** (or
 | Cached snapshots | in-memory only (`last_snapshot`)            | n/a    | implemented |
 | Usage history    | `dirs::data_dir()/headroom/history.jsonl`   | JSONL  | implemented |
 
-**Settings** (`settings.json`, written atomically and clamped on load): `poll_interval_secs`, `theme` (`auto`/`light`/`dark`), `show_tray_percentage`, `notify_warn_pct` (orange, 0 = off), `notify_crit_pct` (red, 0 = off), `show_claude_design`. Launch-at-login is managed by `tauri-plugin-autostart`, not stored here. Saving settings emits `settings-updated` so open windows react live (theme, Claude Design toggle).
+**Settings** (`settings.json`, written atomically and clamped on load): `poll_interval_secs`, `theme` (`auto`/`light`/`dark`), `show_tray_percentage`, `notify_warn_pct` (orange, 0 = off), `notify_crit_pct` (red, 0 = off), `show_claude_design`, `codex_live_query` (query Codex's usage endpoint vs. read its local logs only). Launch-at-login is managed by `tauri-plugin-autostart`, not stored here. Saving settings emits `settings-updated` so open windows react live (theme, Claude Design toggle).
 
 The history file is append-only JSONL, one line per `{ ts, service, window, used_pct }`, loaded on startup and pruned to a 30-day retention horizon.
 
