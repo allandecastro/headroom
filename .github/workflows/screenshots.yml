@@ -45,15 +45,6 @@ jobs:
       - name: Regenerate
         run: npm run screenshots
 
-      # TEMP: upload the freshly regenerated (Windows-rendered) PNGs so a
-      # non-Windows contributor can download the canonical bytes. Remove after.
-      - name: Upload regenerated screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots
-          path: docs/screenshots/
-
       - name: Check for drift
         run: |
           if [[ -n "$(git status --porcelain docs/screenshots)" ]]; then
