@@ -121,9 +121,21 @@ interface ServiceRowProps {
   staticName: string;
   credentialKey: 'claude' | 'copilot';
   onSignOut: () => void;
+  diagButtonLabel: string;
+  onDiagnostics: () => void;
+  diagBusy: boolean;
 }
 
-function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: ServiceRowProps) {
+function ServiceRow({
+  icon,
+  svc,
+  staticName,
+  credentialKey,
+  onSignOut,
+  diagButtonLabel,
+  onDiagnostics,
+  diagBusy,
+}: ServiceRowProps) {
   const state = svc?.state;
   const displayName = svc ? (svc.plan ? `${svc.name} · ${svc.plan}` : svc.name) : staticName;
 
@@ -151,21 +163,30 @@ function ServiceRow({ icon, svc, staticName, credentialKey, onSignOut }: Service
           {statusEl}
         </span>
       </div>
-      <div className="flex gap-1.5">
-        <Button
-          className="text-xxs px-[9px] py-[3px]"
-          onClick={() => openOnboarding().catch(console.error)}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onDiagnostics}
+          disabled={diagBusy}
+          className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
         >
-          Re-auth
-        </Button>
-        <Button
-          className="text-xxs px-[9px] py-[3px]"
-          onClick={() => {
-            clearCredentials(credentialKey).then(onSignOut).catch(console.error);
-          }}
-        >
-          Sign out
-        </Button>
+          {diagButtonLabel}
+        </button>
+        <div className="flex gap-1.5">
+          <Button
+            className="text-xxs px-[9px] py-[3px]"
+            onClick={() => openOnboarding().catch(console.error)}
+          >
+            Re-auth
+          </Button>
+          <Button
+            className="text-xxs px-[9px] py-[3px]"
+            onClick={() => {
+              clearCredentials(credentialKey).then(onSignOut).catch(console.error);
+            }}
+          >
+            Sign out
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -617,6 +638,9 @@ export default function SettingsPanel() {
             staticName="Claude"
             credentialKey="claude"
             onSignOut={refreshSnapshot}
+            diagButtonLabel={diagLabel('claude', 'Diagnostics')}
+            onDiagnostics={() => copyDiagnostics('claude')}
+            diagBusy={diag?.which === 'claude' && diag.state === 'copying'}
           />
         </Group>
 
@@ -722,23 +746,6 @@ export default function SettingsPanel() {
               onChange={(v) => update({ check_updates: v })}
               ariaLabel="Check for updates automatically"
             />
-          </Row>
-          <Row>
-            <div className="flex flex-1 flex-col">
-              <span className="text-[12px] text-fg-secondary">Claude diagnostics</span>
-              <span className="mt-0.5 text-[10.5px] text-fg-quaternary">
-                Copy Claude’s raw usage payload (token redacted) to report a problem
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => copyDiagnostics('claude')}
-                disabled={diag?.state === 'copying'}
-                className="text-[10.5px] text-fg-quaternary hover:text-fg-secondary disabled:opacity-60"
-              >
-                {diagLabel('claude', 'Claude')}
-              </button>
-            </div>
           </Row>
           <Row>
             <span className="flex-1 text-[12px] text-fg-secondary">Made by Allan De Castro</span>
